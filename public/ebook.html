@@ -1,261 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Understanding Pornography Habit – Reduce your consumption to near zero.</title>
-    
-    <style>
-      :root{
-        --bg:#070b12;
-        --bg2:#0b1220;
-        --text:#e5e7eb;
-        --muted:#a1a1aa;
-        --border:rgba(255,255,255,.10);
-        --card:rgba(15,23,42,.72);
-        --cardSolid:#0f172a;
-        --link:#93c5fd;
-        --linkHover:#bfdbfe;
-        --focus:#60a5fa;
-        --shadow:0 10px 30px rgba(0,0,0,.35);
-      }
-      *{box-sizing:border-box}
-      html{scroll-behavior:smooth}
-      body{
-        margin:0;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-        background:
-          radial-gradient(1200px 700px at 20% 10%, rgba(147,197,253,.12), transparent 55%),
-          radial-gradient(900px 600px at 80% 20%, rgba(167,243,208,.10), transparent 55%),
-          linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-        color:var(--text);
-        line-height:1.7;
-        font-size:18px;
-      }
-      a{color:var(--link)}
-      /* Subtle biological illustration background */
-      body::before{
-        content:"";
-        position:fixed;
-        inset:0;
-        pointer-events:none;
-        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cg fill='none' stroke='%23a7f3d0' stroke-width='2' opacity='0.18'%3E%3Cpath d='M80 720 C 240 560, 360 560, 520 720 S 800 880, 980 720 S 1200 560, 1340 720'/%3E%3Cpath d='M80 80 C 240 240, 360 240, 520 80 S 800 -80, 980 80 S 1200 240, 1340 80'/%3E%3Cpath d='M160 140 C 320 300, 440 300, 600 140 S 880 -20, 1060 140'/%3E%3Cpath d='M160 660 C 320 500, 440 500, 600 660 S 880 820, 1060 660'/%3E%3C/g%3E%3Cg fill='none' stroke='%2393c5fd' stroke-width='2' opacity='0.16'%3E%3Cpath d='M860 120 C 900 180, 960 210, 1030 220 C 1100 230, 1120 300, 1070 340 C 1020 380, 940 360, 900 300 C 860 240, 820 220, 770 210'/%3E%3Cpath d='M780 210 L 720 160'/%3E%3Cpath d='M900 300 L 840 360'/%3E%3Cpath d='M1030 220 L 1090 170'/%3E%3Ccircle cx='720' cy='160' r='10'/%3E%3Ccircle cx='840' cy='360' r='10'/%3E%3Ccircle cx='1090' cy='170' r='10'/%3E%3Ccircle cx='770' cy='210' r='10'/%3E%3Ccircle cx='860' cy='120' r='10'/%3E%3Ccircle cx='900' cy='300' r='10'/%3E%3Ccircle cx='1030' cy='220' r='10'/%3E%3C/g%3E%3C/svg%3E");
-        background-size:1200px 800px;
-        background-position:center top;
-        background-repeat:no-repeat;
-        opacity:.03;
-        mix-blend-mode:screen;
-        filter: blur(0.2px);
-      }
-      a:hover{color:var(--linkHover)}
-      a:focus, button:focus{
-        outline:3px solid rgba(37,99,235,.35);
-        outline-offset:2px;
-      }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Understanding Pornography Habit – Reduce your consumption to near zero.</title>
 
-      /* Simple top bar */
-      .topbar{
-        position:sticky;
-        top:0;
-        z-index:1000;
-        background:rgba(7,11,18,.72);
-        backdrop-filter:saturate(180%) blur(10px);
-        border-bottom:1px solid var(--border);
-      }
-      .topbar-inner{
-        max-width:980px;
-        margin:0 auto;
-        padding:10px 16px;
-        display:flex;
-        align-items:center;
-        gap:12px;
-      }
-      .brand{
-        display:flex;
-        flex-direction:column;
-        gap:2px;
-        min-width: 220px;
-      }
-      .brand-title{
-        font-weight:700;
-        font-size:16px;
-        line-height:1.2;
-        margin:0;
-      }
-      .brand-sub{
-        font-size:13px;
-        color:var(--muted);
-        line-height:1.2;
-        margin:0;
-      }
-      .topbar-actions{
-        margin-left:auto;
-        display:flex;
-        align-items:center;
-        gap:10px;
-        flex-wrap:wrap;
-      }
-      .btn{
-        appearance:none;
-        border:1px solid var(--border);
-        background:rgba(255,255,255,.04);
-        color:var(--text);
-        padding:8px 12px;
-        border-radius:12px;
-        font-size:14px;
-        cursor:pointer;
-      }
-      .btn:hover{border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.06)}
-      .btn-primary{
-        background:rgba(147,197,253,.16);
-        color:var(--text);
-        border-color:rgba(147,197,253,.22);
-      }
-      .btn-primary:hover{background:rgba(147,197,253,.22)}
+  <style>
+    :root{
+      --bg:#070b12;
+      --bg2:#0b1220;
+      --text:#e5e7eb;
+      --muted:#a1a1aa;
+      --border:rgba(255,255,255,.10);
+      --card:rgba(15,23,42,.72);
+      --cardSolid:#0f172a;
+      --link:#93c5fd;
+      --linkHover:#bfdbfe;
+      --focus:#60a5fa;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(147,197,253,.12), transparent 55%),
+        radial-gradient(900px 600px at 80% 20%, rgba(167,243,208,.10), transparent 55%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      color:var(--text);
+      line-height:1.7;
+      font-size:18px;
+    }
+    a{color:var(--link)}
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cg fill='none' stroke='%23a7f3d0' stroke-width='2' opacity='0.18'%3E%3Cpath d='M80 720 C 240 560, 360 560, 520 720 S 800 880, 980 720 S 1200 560, 1340 720'/%3E%3Cpath d='M80 80 C 240 240, 360 240, 520 80 S 800 -80, 980 80 S 1200 240, 1340 80'/%3E%3Cpath d='M160 140 C 320 300, 440 300, 600 140 S 880 -20, 1060 140'/%3E%3Cpath d='M160 660 C 320 500, 440 500, 600 660 S 880 820, 1060 660'/%3E%3C/g%3E%3Cg fill='none' stroke='%2393c5fd' stroke-width='2' opacity='0.16'%3E%3Cpath d='M860 120 C 900 180, 960 210, 1030 220 C 1100 230, 1120 300, 1070 340 C 1020 380, 940 360, 900 300 C 860 240, 820 220, 770 210'/%3E%3Cpath d='M780 210 L 720 160'/%3E%3Cpath d='M900 300 L 840 360'/%3E%3Cpath d='M1030 220 L 1090 170'/%3E%3Ccircle cx='720' cy='160' r='10'/%3E%3Ccircle cx='840' cy='360' r='10'/%3E%3Ccircle cx='1090' cy='170' r='10'/%3E%3Ccircle cx='770' cy='210' r='10'/%3E%3Ccircle cx='860' cy='120' r='10'/%3E%3Ccircle cx='900' cy='300' r='10'/%3E%3Ccircle cx='1030' cy='220' r='10'/%3E%3C/g%3E%3C/svg%3E");
+      background-size:1200px 800px;
+      background-position:center top;
+      background-repeat:no-repeat;
+      opacity:.03;
+      mix-blend-mode:screen;
+      filter: blur(0.2px);
+    }
+    a:hover{color:var(--linkHover)}
+    a:focus, button:focus{
+      outline:3px solid rgba(37,99,235,.35);
+      outline-offset:2px;
+    }
 
-      /* Layout */
-      .container{
-        max-width:980px;
-        margin:0 auto;
-        padding:18px 16px 80px;
-      }
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:1000;
+      background:rgba(7,11,18,.72);
+      backdrop-filter:saturate(180%) blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar-inner{
+      max-width:980px;
+      margin:0 auto;
+      padding:10px 16px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 220px;
+    }
+    .brand-title{
+      font-weight:700;
+      font-size:16px;
+      line-height:1.2;
+      margin:0;
+    }
+    .brand-sub{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.2;
+      margin:0;
+    }
+    .topbar-actions{
+      margin-left:auto;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:12px;
+      font-size:14px;
+      cursor:pointer;
+    }
+    .btn:hover{border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.06)}
+    .btn-primary{
+      background:rgba(147,197,253,.16);
+      color:var(--text);
+      border-color:rgba(147,197,253,.22);
+    }
+    .btn-primary:hover{background:rgba(147,197,253,.22)}
 
-      /* Intro header */
-      .hero{
-        padding:18px 0 6px;
-      }
+    .container{
+      max-width:980px;
+      margin:0 auto;
+      padding:18px 16px 80px;
+    }
+
+    .hero{
+      padding:18px 0 6px;
+    }
+    .hero h1{
+      font-size:34px;
+      line-height:1.2;
+      margin:0 0 8px;
+      letter-spacing:.2px;
+    }
+    .hero p{
+      margin:0;
+      color:var(--muted);
+      max-width: 70ch;
+    }
+
+    .toc{
+      margin:18px 0 28px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:var(--card);
+      box-shadow: var(--shadow);
+      padding:14px 14px 6px;
+    }
+    .toc-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:4px 2px 10px;
+    }
+    .toc h2{
+      font-size:18px;
+      margin:0;
+    }
+    .toc ul{
+      margin:0;
+      padding:0 0 8px 0;
+      list-style:none;
+    }
+    .toc li{
+      padding:8px 6px;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    .toc a{
+      text-decoration:none;
+      display:block;
+    }
+    .toc a small{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:2px;
+    }
+
+    .section{
+      margin:0 0 18px;
+      padding:18px 16px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:var(--card);
+      box-shadow: var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .section::after{
+      content:"";
+      position:absolute;
+      inset:-40px -40px auto auto;
+      width:420px;
+      height:260px;
+      background-image:url("%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='260' viewBox='0 0 420 260'%3E%3Cg fill='none' stroke='%23a7f3d0' stroke-width='2' opacity='0.22'%3E%3Cpath d='M40 210 C 120 150, 170 150, 250 210 S 360 270, 450 210'/%3E%3Cpath d='M40 60 C 120 120, 170 120, 250 60 S 360 0, 450 60'/%3E%3Cpath d='M90 80 L 210 180'/%3E%3Cpath d='M120 60 L 240 160'/%3E%3Cpath d='M150 40 L 270 140'/%3E%3C/g%3E%3C/svg%3E");
+      background-size:contain;
+      background-repeat:no-repeat;
+      opacity:.06;
+      pointer-events:none;
+      transform:rotate(8deg);
+    }
+    .section h2{
+      font-size:24px;
+      line-height:1.25;
+      margin:0 0 10px;
+    }
+    .section h3{
+      font-size:20px;
+      margin:18px 0 8px;
+    }
+    .section h4{
+      font-size:18px;
+      margin:16px 0 8px;
+    }
+    .section p{margin:0 0 12px}
+    .section ul{margin:0 0 12px; padding-left:22px}
+    .section li{margin:6px 0}
+
+    img{
+      max-width:100%;
+      height:auto;
+      border-radius:12px;
+    }
+    .icon{
+      width: min(180px, 100%);
+      margin:10px 0 6px;
+    }
+
+    .video-placeholder{
+      position:relative;
+      width:100%;
+      aspect-ratio:16/9;
+      background:rgba(255,255,255,.03);
+      border:1px dashed rgba(255,255,255,.18);
+      border-radius:14px;
+      margin:14px 0 6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:rgba(229,231,235,.70);
+      font-size:14px;
+    }
+    .video-placeholder::before{
+      content:"Video placeholder";
+    }
+
+    .pager{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:10px;
+      padding-top:6px;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    .pager .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:12px;
+      font-size:14px;
+      cursor:pointer;
+    }
+
+    .backtop{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      border:1px solid var(--border);
+      background:rgba(15,23,42,.75);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 12px;
+      font-size:14px;
+      cursor:pointer;
+      box-shadow: var(--shadow);
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      html{scroll-behavior:auto}
+    }
+
+    @media (max-width:600px){
+      body{font-size:17px}
+      .brand{min-width:auto}
       .hero h1{
         font-size:34px;
         line-height:1.2;
         margin:0 0 8px;
         letter-spacing:.2px;
-      }
-      .hero p{
-        margin:0;
-        color:var(--muted);
-        max-width: 70ch;
-      }
-
-      /* TOC card */
-      .toc{
-        margin:18px 0 28px;
-        border:1px solid var(--border);
-        border-radius:16px;
-        background:var(--card);
-        box-shadow: var(--shadow);
-        padding:14px 14px 6px;
-      }
-      .toc-head{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        padding:4px 2px 10px;
-      }
-      .toc h2{
-        font-size:18px;
-        margin:0;
-      }
-      .toc ul{
-        margin:0;
-        padding:0 0 8px 0;
-        list-style:none;
-      }
-      .toc li{
-        padding:8px 6px;
-        border-top:1px solid rgba(255,255,255,.08);
-      }
-      .toc a{
-        text-decoration:none;
-        display:block;
-      }
-      .toc a small{
-        display:block;
-        color:var(--muted);
-        font-size:12px;
-        margin-top:2px;
-      }
-
-      /* Sections */
-      .section{
-        margin:0 0 18px;
-        padding:18px 16px;
-        border:1px solid var(--border);
-        border-radius:16px;
-        background:var(--card);
-        box-shadow: var(--shadow);
-        position:relative;
-        overflow:hidden;
-      }
-      /* Section watermark (very low opacity) */
-      .section::after{
-        content:"";
-        position:absolute;
-        inset:-40px -40px auto auto;
-        width:420px;
-        height:260px;
-        background-image:url("%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='260' viewBox='0 0 420 260'%3E%3Cg fill='none' stroke='%23a7f3d0' stroke-width='2' opacity='0.22'%3E%3Cpath d='M40 210 C 120 150, 170 150, 250 210 S 360 270, 450 210'/%3E%3Cpath d='M40 60 C 120 120, 170 120, 250 60 S 360 0, 450 60'/%3E%3Cpath d='M90 80 L 210 180'/%3E%3Cpath d='M120 60 L 240 160'/%3E%3Cpath d='M150 40 L 270 140'/%3E%3C/g%3E%3C/svg%3E");
-        background-size:contain;
-        background-repeat:no-repeat;
-        opacity:.06;
-        pointer-events:none;
-        transform:rotate(8deg);
-      }
-      .section h2{
-        font-size:24px;
-        line-height:1.25;
-        margin:0 0 10px;
-      }
-      .section h3{
-        font-size:20px;
-        margin:18px 0 8px;
-      }
-      .section h4{
-        font-size:18px;
-        margin:16px 0 8px;
-      }
-      .section p{margin:0 0 12px}
-      .section ul{margin:0 0 12px; padding-left:22px}
-      .section li{margin:6px 0}
-
-      img{
-        max-width:100%;
-        height:auto;
-        border-radius:12px;
-      }
-      .icon{
-        width: min(180px, 100%);
-        margin:10px 0 6px;
-      }
-
-      /* Video placeholder */
-      .video-placeholder{
-        position:relative;
-        width:100%;
-        aspect-ratio:16/9;
-        background:rgba(255,255,255,.03);
-        border:1px dashed rgba(255,255,255,.18);
-        border-radius:14px;
-        margin:14px 0 6px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        color:rgba(229,231,235,.70);
-        font-size:14px;
-      }
-      .video-placeholder::before{
-        content:"Video placeholder";
-      }
-
-      /* Bottom nav */
-      .pager{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        margin-top:10px;
-        padding-top:6px;
-        border-top:1px solid rgba(255,255,255,.08);
       }
       .pager .btn{
         appearance:none;
@@ -267,329 +296,284 @@
         font-size:14px;
         cursor:pointer;
       }
+    }
 
-      /* Back to top */
-      .backtop{
-        position:fixed;
-        right:16px;
-        bottom:16px;
-        border:1px solid var(--border);
-        background:rgba(15,23,42,.75);
-        color:var(--text);
-        border-radius:999px;
-        padding:10px 12px;
-        font-size:14px;
-        cursor:pointer;
-        box-shadow: var(--shadow);
-      }
-
-      /* Reduce motion */
-      @media (prefers-reduced-motion: reduce){
-        html{scroll-behavior:auto}
-      }
-
-      /* Small screens */
-      @media (max-width:600px){
-        body{font-size:17px}
-        .brand{min-width:auto}
-        .hero h1{
-        font-size:34px;
-        line-height:1.2;
-        margin:0 0 8px;
-        letter-spacing:.2px;
-      }
-        .pager .btn{
-        appearance:none;
-        border:1px solid var(--border);
-        background:rgba(255,255,255,.04);
-        color:var(--text);
-        padding:8px 12px;
-        border-radius:12px;
-        font-size:14px;
-        cursor:pointer;
-      }
-      }
-    
-      /* Narrative photo scenes (16:9 landscape banners) */
+    .scene{
+      position: relative;
+      height: 360px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      background-size: cover;
+      background-position: center;
+      margin: 18px 0 22px;
+      box-shadow: var(--shadow);
+    }
+    .scene::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(180deg, rgba(7,11,18,.70) 0%, rgba(7,11,18,.30) 45%, rgba(7,11,18,.78) 100%);
+    }
+    .scene-overlay{
+      position:absolute;
+      inset:0;
+      box-shadow: inset 0 0 140px rgba(0,0,0,.55);
+      pointer-events:none;
+    }
+    .scene-caption{
+      position:absolute;
+      left:14px;
+      bottom:12px;
+      right:14px;
+      font-size:14px;
+      color: rgba(229,231,235,.86);
+      background: rgba(15,23,42,.35);
+      border: 1px solid rgba(255,255,255,.10);
+      padding:10px 12px;
+      border-radius:14px;
+      backdrop-filter: blur(6px) saturate(140%);
+      max-width: 72ch;
+    }
+    .scene-caption strong{
+      display:block;
+      font-weight:700;
+      color: rgba(229,231,235,.96);
+      margin-bottom:2px;
+    }
+    @media (max-width:600px){
       .scene{
-        position: relative;
-        height: 360px;
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        overflow: hidden;
-        background-size: cover; /* ensure the image covers the entire area */
-        background-position: center;
-        margin: 18px 0 22px;
-        box-shadow: var(--shadow);
+        height:auto;
+        aspect-ratio: 16 / 9;
       }
-      .scene::before{
-        content:"";
-        position:absolute;
-        inset:0;
-        /* readability layer + calm mood */
-        background:
-          linear-gradient(180deg, rgba(7,11,18,.70) 0%, rgba(7,11,18,.30) 45%, rgba(7,11,18,.78) 100%);
-      }
-      .scene-overlay{
-        position:absolute;
-        inset:0;
-        /* subtle vignette */
-        box-shadow: inset 0 0 140px rgba(0,0,0,.55);
-        pointer-events:none;
-      }
-      .scene-caption{
-        position:absolute;
-        left:14px;
-        bottom:12px;
-        right:14px;
-        font-size:14px;
-        color: rgba(229,231,235,.86);
-        background: rgba(15,23,42,.35);
-        border: 1px solid rgba(255,255,255,.10);
-        padding:10px 12px;
-        border-radius:14px;
-        backdrop-filter: blur(6px) saturate(140%);
-        max-width: 72ch;
-      }
-      .scene-caption strong{
-        display:block;
-        font-weight:700;
-        color: rgba(229,231,235,.96);
-        margin-bottom:2px;
-      }
-      @media (max-width:600px){
-        /* On very small screens, adapt the height of scenes using a 16:9 aspect ratio. */
-        .scene{
-          height:auto;
-          aspect-ratio: 16 / 9;
-        }
-        .scene-caption{font-size:13px;}
-      }
-
-</style>
-<!-- Removed scattered illustration styles -->
-
+      .scene-caption{font-size:13px;}
+    }
+  </style>
 </head>
-<body>
-    <!-- Removed scattered background illustration container -->
 
-    <div class="topbar" role="navigation" aria-label="Primary">
-      <div class="topbar-inner">
-        <div class="brand">
-          <p class="brand-title">A Method to reduce your pornography consumption.</p>
-          <p class="brand-sub">A personal 90‑day observational study</p>
-        </div>
-        <div class="topbar-actions">
-          <button class="btn" id="tocToggle" type="button" aria-expanded="true" aria-controls="tocList">Contents</button>
-          <button class="btn" id="prevBtn" type="button">Previous</button>
-          <button class="btn btn-primary" id="nextBtn" type="button">Next</button>
-        </div>
+<body>
+  <div class="topbar" role="navigation" aria-label="Primary">
+    <div class="topbar-inner">
+      <div class="brand">
+        <p class="brand-title">A Method to reduce your pornography consumption.</p>
+        <p class="brand-sub">A personal 90-day observational study</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn" id="tocToggle" type="button" aria-expanded="true" aria-controls="tocList">Contents</button>
+        <button class="btn" id="prevBtn" type="button">Previous</button>
+        <button class="btn btn-primary" id="nextBtn" type="button">Next</button>
       </div>
     </div>
+  </div>
 
-    <div class="container">
-      <header class="hero" id="top">
-        <h1>Pornography Habit</h1>
-        <p>Understanding the problem is already half the solution.</p>
-      </header>
+  <div class="container">
+    <header class="hero" id="top">
+      <h1>Pornography Habit</h1>
+      <p>Understanding the problem is already half the solution.</p>
+    </header>
 
-        <nav class="toc" aria-label="Table of contents">
-            <div class="toc-head"><h2>Contents</h2><span style="color:var(--muted);font-size:13px">Tap an item to jump</span></div>
-            <ul id="tocList">
-                <li><a href="#introduction">Introduction — How This Study Started</a></li>
-                <li><a href="#core-question">Core Question of the Study</a></li>
-                <li><a href="#groups">The Three User Groups</a></li>
-                <li><a href="#porn-vs-sex">Pornography vs Sex Without Love</a></li>
-                <li><a href="#experiment">The 90‑Day Experiment</a></li>
-                <li><a href="#final-method">Final — The Method</a></li>
-                <li><a href="#meaning">Take a look - (Optional)</a></li>
-            </ul>
-        </nav>
+    <nav class="toc" aria-label="Table of contents">
+      <div class="toc-head">
+        <h2>Contents</h2>
+        <span style="color:var(--muted);font-size:13px">Tap an item to jump</span>
+      </div>
+      <ul id="tocList">
+        <li><a href="#introduction">Introduction — How This Study Started</a></li>
+        <li><a href="#core-question">Core Question of the Study</a></li>
+        <li><a href="#groups">The Three User Groups</a></li>
+        <li><a href="#porn-vs-sex">Pornography vs Sex Without Love</a></li>
+        <li><a href="#experiment">The 90-Day Experiment</a></li>
+        <li><a href="#final-method">Final — The Method</a></li>
+        <li><a href="#meaning">Take a look - (Optional)</a></li>
+      </ul>
+    </nav>
 
-      <!-- Introduction Section -->
-<section id="introduction" class="section">
-  <h2>Introduction — How This Study Started</h2>
+    <!-- Introduction Section -->
+    <section id="introduction" class="section">
+      <h2>Introduction — How This Study Started</h2>
 
-  <p>I first encountered Pornography when I was around 15 years old. At the time, it felt normal and insignificant. Over the years, it became a recurring habit—sometimes more present, sometimes less, but always part of my routine.</p>
+      <p>I first encountered Pornography when I was around 15 years old. At the time, it felt normal and insignificant. Over the years, it became a recurring habit—sometimes more present, sometimes less, but always part of my routine.</p>
 
-  <p>For a long period, this behavior followed a repetitive pattern of attempts to change and eventual relapse. Even when I managed to stop for short periods, the underlying cycle remained unchanged.</p>
+      <p>For a long period, this behavior followed a repetitive pattern of attempts to change and eventual relapse. Even when I managed to stop for short periods, the underlying cycle remained unchanged.</p>
 
-  <p>What became clear was that common advice and surface-level explanations were not enough to explain why the behavior persisted.</p>
+      <p>What became clear was that common advice and surface-level explanations were not enough to explain why the behavior persisted.</p>
 
-  <p>This study focuses on understanding the internal mechanisms behind this habit: how it forms, how it repeats itself, and what sustains it over time.</p>
-</section>
+      <p>This study focuses on understanding the internal mechanisms behind this habit: how it forms, how it repeats itself, and what sustains it over time.</p>
+    </section>
 
-<div class="scene" style="background-image:url('assets/scene1_new.png')" role="img" aria-label="Late-night loop. Alone, tired, and pulled back to the screen.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>Late-night loop</strong>Alone, tired, and pulled back to the screen.</div>
-</div>
-
-<!-- Core Question Section -->
-<section id="core-question" class="section">
-  <h2>Core Question of the Study</h2>
-  <p>The main question behind this entire study was simple:</p>
-  <p><strong>Why is pornography so hard to quit compared to other habits?</strong></p>
-  <ul>
-    <li>People quit alcohol.</li>
-    <li>People quit cigarettes.</li>
-    <li>People quit sugar, games, social media.</li>
-  </ul>
-  <p>But pornography feels different.</p>
-  <p>It feels more persistent, more internal, more resistant to willpower.</p>
-  <p>I suspected that the problem was not lack of discipline, but lack of understanding.</p>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene2_new.png')" role="img" aria-label="The question appears. A quiet moment that turns into a decision to study the habit.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>The question appears</strong>A quiet moment that turns into a decision to study the habit.</div>
-</div>
-
-<!-- User Groups Section -->
-<section id="groups" class="section">
-  <h2>The Three User Groups</h2>
-  <p>As I observed myself and others, it became clear that not everyone watches pornography for the same reason.</p>
-  <p>This is why generic advice often fails.</p>
-  <p>I identified three main patterns. Each one has a different “driver,” which means each one requires a different approach.</p>
-
-  <h3>Group A — Visual / Object‑Focused Users</h3>
-  <h3>Group B — Fantasy / Narrative Users</h3>
-  <h3>Group C — Affection / Attachment Users</h3>
-  <p><em>Below, you’ll start to see which of these groups you belong to—and what that reveals about you.</em></p>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene2.5.png')" role="img" aria-label="Late-night loop. Alone, tired, and pulled back to the screen.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>Late-night loop</strong>Sex without love follows the same pattern as pornography.</div>
-</div>
-
-<!-- Pornography vs Sex Without Love Section -->
-<section id="porn-vs-sex" class="section">
-  <h2>Pornography vs Sex Without Love</h2>
-  <p>Another question I explored was:</p>
-  <p><strong>Why do people often feel empty afterward?</strong></p>
-  <p>I compared pornography to another situation that happens every day, but is rarely judged in the same way.</p>
-  <p>At first glance, it may seem completely different — but the comparison reveals something unexpected.</p>
-  </ul>
-  <p><em>Now, lets talk about why you don’t need to feel guilt after consuming Pornography</em></p>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene3_new.png')" role="img" aria-label="The 90‑day commitment. Facing yourself with clarity and courage.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>The 90‑day commitment</strong>Facing yourself with clarity and courage.</div>
-</div>
-
-<!-- The 90-Day Experiment Section -->
-<section id="experiment" class="section">
-  <h2>The 90‑Day Experiment</h2>
-
-  <p>At a certain point, I decided to run a structured experiment on myself.</p>
-
-  <p>For approximately 90 days, I exposed myself to Pornography under controlled conditions, deliberately altering a key aspect of the usual pattern.</p>
-
-  <p>The objective was not pleasure.<br />The objective was observation.</p>
-
-  <p><em>This is where it became clear what needed to change in order to reduce the behavior and reclaim a sense of normal life—without carrying persistent guilt or self-judgment.<em></p>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene4_new.png')" role="img" aria-label="The 90‑day commitment. Facing yourself with clarity and courage.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>The Method</strong>The approach that allowed me to reduce consumption to near zero.</div>
-</div>
-
-<!-- Final — The Method Section -->
-<section id="final-method" class="section">
-  <h2>Final — The Method</h2>
-  <p>This is where observation ends and action begins.</p>
-  <p>The video below lays out the exact steps to follow when an urge appears, focusing on what to do in real time rather than why the habit exists.</p>
-  <p><strong>This section is practical:</strong> clear actions, applied immediately, designed to change behavior—not analyze it.</p>
-</section>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene7.png')" role="img" aria-label="Healthy replacement. Movement, fresh air, and real connection replace the old loop.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>You owe nothing.</strong>Even if you are not religious, maybe you gotta hear this, regardless of where you stand today.</div>
-
-</div>
-
-<!-- Meaning and Faith Section -->
-<section id="meaning" class="section">
-  <h2>This is optional.</h2>
-  <p>Meaning can come from different sources.</p>
-  <p>The method works independently because its biological.<br />Meaning strengthens commitment for every goal.</p>
-  <div class="video-placeholder"></div>
-</section>
-
-<div class="scene" style="background-image:url('assets/scene6_new.png')" role="img" aria-label="Back to life. Presence, friendship, and belonging.">
-  <div class="scene-overlay"></div>
-  <div class="scene-caption"><strong>Back to life</strong>Remember: Everyone is procrastinating somehow.</div>
-</div>
+    <!-- PATH FIX: /assets/... (because files are in public/assets) -->
+    <div class="scene" style="background-image:url('/assets/scene1_new.png')" role="img" aria-label="Late-night loop. Alone, tired, and pulled back to the screen.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Late-night loop</strong>Alone, tired, and pulled back to the screen.</div>
     </div>
 
-    <button class="backtop" type="button" id="backTop" aria-label="Back to top">↑ Top</button>
-    <script>
-      (function(){
-        const sections = Array.from(document.querySelectorAll('section.section[id]'));
-        const tocToggle = document.getElementById('tocToggle');
-        const tocList = document.getElementById('tocList');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const backTop = document.getElementById('backTop');
+    <!-- Core Question Section -->
+    <section id="core-question" class="section">
+      <h2>Core Question of the Study</h2>
+      <p>The main question behind this entire study was simple:</p>
+      <p><strong>Why is pornography so hard to quit compared to other habits?</strong></p>
+      <ul>
+        <li>People quit alcohol.</li>
+        <li>People quit cigarettes.</li>
+        <li>People quit sugar, games, social media.</li>
+      </ul>
+      <p>But pornography feels different.</p>
+      <p>It feels more persistent, more internal, more resistant to willpower.</p>
+      <p>I suspected that the problem was not lack of discipline, but lack of understanding.</p>
+      <div class="video-placeholder"></div>
+    </section>
 
-        function currentSectionIndex(){
-          const y = window.scrollY || document.documentElement.scrollTop;
-          // Choose the last section whose top is above the viewport + offset
-          const offset = 140;
-          let idx = 0;
-          for (let i = 0; i < sections.length; i++){
-            const top = sections[i].getBoundingClientRect().top + window.scrollY;
-            if (top - offset <= y) idx = i;
-          }
-          return idx;
+    <div class="scene" style="background-image:url('/assets/scene2_new.png')" role="img" aria-label="The question appears. A quiet moment that turns into a decision to study the habit.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>The question appears</strong>A quiet moment that turns into a decision to study the habit.</div>
+    </div>
+
+    <!-- User Groups Section -->
+    <section id="groups" class="section">
+      <h2>The Three User Groups</h2>
+      <p>As I observed myself and others, it became clear that not everyone watches pornography for the same reason.</p>
+      <p>This is why generic advice often fails.</p>
+      <p>I identified three main patterns. Each one has a different “driver,” which means each one requires a different approach.</p>
+
+      <h3>Group A — Visual / Object-Focused Users</h3>
+      <h3>Group B — Fantasy / Narrative Users</h3>
+      <h3>Group C — Affection / Attachment Users</h3>
+      <p><em>Below, you’ll start to see which of these groups you belong to—and what that reveals about you.</em></p>
+      <div class="video-placeholder"></div>
+    </section>
+
+    <div class="scene" style="background-image:url('/assets/scene2.5.png')" role="img" aria-label="Sex without love follows the same pattern as pornography.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Late-night loop</strong>Sex without love follows the same pattern as pornography.</div>
+    </div>
+
+    <!-- Pornography vs Sex Without Love Section -->
+    <section id="porn-vs-sex" class="section">
+      <h2>Pornography vs Sex Without Love</h2>
+      <p>Another question I explored was:</p>
+      <p><strong>Why do people often feel empty afterward?</strong></p>
+      <p>I compared pornography to another situation that happens every day, but is rarely judged in the same way.</p>
+      <p>At first glance, it may seem completely different — but the comparison reveals something unexpected.</p>
+
+      <!-- FIX: removed stray </ul> that was breaking the HTML -->
+
+      <p><em>Now, lets talk about why you don’t need to feel guilt after consuming Pornography</em></p>
+      <div class="video-placeholder"></div>
+    </section>
+
+    <div class="scene" style="background-image:url('/assets/scene3_new.png')" role="img" aria-label="The 90-day commitment. Facing yourself with clarity and courage.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>The 90-day commitment</strong>Facing yourself with clarity and courage.</div>
+    </div>
+
+    <!-- The 90-Day Experiment Section -->
+    <section id="experiment" class="section">
+      <h2>The 90-Day Experiment</h2>
+
+      <p>At a certain point, I decided to run a structured experiment on myself.</p>
+
+      <p>For approximately 90 days, I exposed myself to Pornography under controlled conditions, deliberately altering a key aspect of the usual pattern.</p>
+
+      <p>The objective was not pleasure.<br />The objective was observation.</p>
+
+      <!-- FIX: close the <em> tag properly -->
+      <p><em>This is where it became clear what needed to change in order to reduce the behavior and reclaim a sense of normal life—without carrying persistent guilt or self-judgment.</em></p>
+
+      <div class="video-placeholder"></div>
+    </section>
+
+    <div class="scene" style="background-image:url('/assets/scene4_new.png')" role="img" aria-label="The method. The approach that allowed me to reduce consumption to near zero.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>The Method</strong>The approach that allowed me to reduce consumption to near zero.</div>
+    </div>
+
+    <!-- Final — The Method Section -->
+    <section id="final-method" class="section">
+      <h2>Final — The Method</h2>
+      <p>This is where observation ends and action begins.</p>
+      <p>The video below lays out the exact steps to follow when an urge appears, focusing on what to do in real time rather than why the habit exists.</p>
+      <p><strong>This section is practical:</strong> clear actions, applied immediately, designed to change behavior—not analyze it.</p>
+      <div class="video-placeholder"></div>
+    </section>
+
+    <div class="scene" style="background-image:url('/assets/scene7.png')" role="img" aria-label="Healthy replacement. Movement, fresh air, and real connection replace the old loop.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>You owe nothing.</strong>Even if you are not religious, maybe you gotta hear this, regardless of where you stand today.</div>
+    </div>
+
+    <!-- Meaning and Faith Section -->
+    <section id="meaning" class="section">
+      <h2>This is optional.</h2>
+      <p>Meaning can come from different sources.</p>
+      <p>The method works independently because its biological.<br />Meaning strengthens commitment for every goal.</p>
+      <div class="video-placeholder"></div>
+    </section>
+
+    <div class="scene" style="background-image:url('/assets/scene6_new.png')" role="img" aria-label="Back to life. Presence, friendship, and belonging.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Back to life</strong>Remember: Everyone is procrastinating somehow.</div>
+    </div>
+  </div>
+
+  <button class="backtop" type="button" id="backTop" aria-label="Back to top">↑ Top</button>
+
+  <script>
+    (function(){
+      const sections = Array.from(document.querySelectorAll('section.section[id]'));
+      const tocToggle = document.getElementById('tocToggle');
+      const tocList = document.getElementById('tocList');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const backTop = document.getElementById('backTop');
+
+      function currentSectionIndex(){
+        const y = window.scrollY || document.documentElement.scrollTop;
+        const offset = 140;
+        let idx = 0;
+        for (let i = 0; i < sections.length; i++){
+          const top = sections[i].getBoundingClientRect().top + window.scrollY;
+          if (top - offset <= y) idx = i;
         }
+        return idx;
+      }
 
-        function goToIndex(i){
-          if (!sections[i]) return;
-          sections[i].scrollIntoView({behavior:'smooth', block:'start'});
+      function goToIndex(i){
+        if (!sections[i]) return;
+        sections[i].scrollIntoView({behavior:'smooth', block:'start'});
+      }
+
+      function updateButtons(){
+        const idx = currentSectionIndex();
+        prevBtn.disabled = idx <= 0;
+        nextBtn.disabled = idx >= sections.length - 1;
+      }
+
+      prevBtn.addEventListener('click', () => goToIndex(currentSectionIndex() - 1));
+      nextBtn.addEventListener('click', () => goToIndex(currentSectionIndex() + 1));
+
+      tocToggle.addEventListener('click', () => {
+        const isHidden = tocList.style.display === 'none';
+        tocList.style.display = isHidden ? '' : 'none';
+        tocToggle.setAttribute('aria-expanded', String(isHidden));
+      });
+
+      backTop.addEventListener('click', () => {
+        document.getElementById('top').scrollIntoView({behavior:'smooth', block:'start'});
+      });
+
+      window.addEventListener('scroll', updateButtons, {passive:true});
+      window.addEventListener('load', updateButtons);
+
+      tocList.addEventListener('click', (e) => {
+        const a = e.target.closest('a');
+        if (!a) return;
+        if (window.matchMedia('(max-width: 600px)').matches){
+          tocList.style.display = 'none';
+          tocToggle.setAttribute('aria-expanded', 'false');
         }
-
-        function updateButtons(){
-          const idx = currentSectionIndex();
-          prevBtn.disabled = idx <= 0;
-          nextBtn.disabled = idx >= sections.length - 1;
-        }
-
-        prevBtn.addEventListener('click', () => goToIndex(currentSectionIndex() - 1));
-        nextBtn.addEventListener('click', () => goToIndex(currentSectionIndex() + 1));
-
-        tocToggle.addEventListener('click', () => {
-          const isHidden = tocList.style.display === 'none';
-          tocList.style.display = isHidden ? '' : 'none';
-          tocToggle.setAttribute('aria-expanded', String(isHidden));
-        });
-
-        backTop.addEventListener('click', () => {
-          document.getElementById('top').scrollIntoView({behavior:'smooth', block:'start'});
-        });
-
-        window.addEventListener('scroll', updateButtons, {passive:true});
-        window.addEventListener('load', updateButtons);
-
-        // Close contents after selecting an item on small screens (helps older users)
-        tocList.addEventListener('click', (e) => {
-          const a = e.target.closest('a');
-          if (!a) return;
-          if (window.matchMedia('(max-width: 600px)').matches){
-            tocList.style.display = 'none';
-            tocToggle.setAttribute('aria-expanded', 'false');
-          }
-        });
-      })();
-    </script>
-
+      });
+    })();
+  </script>
 </body>
 </html>
