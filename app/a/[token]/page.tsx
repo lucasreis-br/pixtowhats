@@ -1,18 +1,27 @@
-import { notFound } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import fs from "fs";
-import path from "path";
+import { notFound, redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+async function getPurchase(token: string) {
+  const url =
+    `${SUPABASE_URL}/rest/v1/purchases` +
+    `?token=eq.${encodeURIComponent(token)}` +
+    `&select=status` +
+    `&limit=1`;
 
-function loadHtml() {
-  const filePath = path.join(process.cwd(), "public", "ebook.html");
-  return fs.readFileSync(filePath, "utf-8");
+  const r = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!r.ok) return null;
+
+  const rows = await r.json().catch(() => []);
+  return rows?.[0] || null;
 }
 
 export default async function AccessPage({
@@ -20,22 +29,24 @@ export default async function AccessPage({
 }: {
   params: { token: string };
 }) {
-  const token = params.token;
+  const token = String(params?.token || "").trim();
+  if (!token) notFound();
 
-  const { data } = await supabase
-    .from("purchases")
-    .select("status")
-    .eq("token", token)
-    .maybeSingle();
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Missing SUPABASE env vars");
+  }
 
-  if (!data || data.status !== "paid") notFound();
+  const purchase = await getPurchase(token);
+  if (!purchase) notFound();
 
-  const html = loadHtml();
+  if (purchase.status !== "paid") {
+    redirect(`/comprar`);
+  }
 
   return (
-    <div
-      dangerouslySetInnerHTML={{ __html: html }}
-      style={{ minHeight: "100vh" }}
+    <iframe
+      src={`/api/ebook?token=${encodeURIComponent(token)}`}
+      style={{ border: "none", width: "100vw", height: "100vh" }}
     />
   );
 }
