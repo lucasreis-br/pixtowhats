@@ -11,7 +11,7 @@ const supabase = createClient(
 );
 
 function loadHtml() {
-  const filePath = path.join(process.cwd(), "src", "content", "module.html");
+  const filePath = path.join(process.cwd(), "public", "ebook.html");
   return fs.readFileSync(filePath, "utf-8");
 }
 
@@ -28,9 +28,7 @@ export default async function AccessPage({
     .eq("token", token)
     .maybeSingle();
 
-  if (!data || data.status !== "paid") {
-    notFound();
-  }
+  if (!data || data.status !== "paid") notFound();
 
   const html = loadHtml();
 
