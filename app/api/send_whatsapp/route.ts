@@ -20,6 +20,13 @@ function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
 }
 
+// Garante URL sem barra final (evita //a/...)
+function normalizeBaseUrl(url: string | undefined | null) {
+  const u = String(url || "").trim();
+  if (!u) return "";
+  return u.endsWith("/") ? u.slice(0, -1) : u;
+}
+
 export async function POST(req: Request) {
   try {
     // Protege o endpoint se você configurar WA_INTERNAL_SECRET na Vercel
@@ -29,7 +36,16 @@ export async function POST(req: Request) {
     }
 
     if (!WA_TOKEN || !WA_PHONE_NUMBER_ID) {
-      return json({ error: "Missing WhatsApp env vars" }, 500);
+      return json(
+        {
+          error: "Missing WhatsApp env vars",
+          missing: {
+            WHATSAPP_TOKEN: !process.env.WHATSAPP_TOKEN && !process.env.WHATSAPP_ACCESS_TOKEN,
+            WHATSAPP_PHONE_NUMBER_ID: !WA_PHONE_NUMBER_ID,
+          },
+        },
+        500
+      );
     }
 
     const body = await req.json().catch(() => ({}));
@@ -39,11 +55,12 @@ export async function POST(req: Request) {
     if (!to || to.length < 12) return json({ error: "Invalid 'to'" }, 400);
     if (!token) return json({ error: "Missing 'token'" }, 400);
 
-    const link = BASE_URL ? `${BASE_URL}/a/${token}` : `/a/${token}`;
+    const base = normalizeBaseUrl(BASE_URL);
+    const link = base ? `${base}/a/${token}` : `/a/${token}`;
 
     // Se você tiver template aprovado, use:
     // WHATSAPP_TEMPLATE_NAME=nome_do_template
-    const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
+    const templateName = String(process.env.WHATSAPP_TEMPLATE_NAME || "").trim();
 
     const payload = templateName
       ? {
@@ -96,12 +113,17 @@ export async function POST(req: Request) {
           error: "WhatsApp send failed",
           status: r.status,
           details: data,
+          debug: {
+            usedTemplate: Boolean(templateName),
+            to,
+            hasBaseUrl: Boolean(base),
+          },
         },
         500
       );
     }
 
-    return json({ ok: true, wa: data });
+    return json({ ok: true, wa: data, debug: { usedTemplate: Boolean(templateName), to } });
   } catch (e: any) {
     return json({ error: e?.message || "Unexpected error" }, 500);
   }
