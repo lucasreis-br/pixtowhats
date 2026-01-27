@@ -11,13 +11,19 @@ function json(data, status = 200) {
   });
 }
 
+function onlyDigits(v) {
+  return String(v || "").replace(/\D/g, "");
+}
+
 async function sendWhatsAppMessage(to, message) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const token = process.env.WHATSAPP_TOKEN;
 
   if (!phoneNumberId || !token) {
-    throw new Error("WHATSAPP ENV MISSING: WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_TOKEN");
+    throw new Error("WHATSAPP ENV MISSING");
   }
+
+  const normalizedTo = onlyDigits(to);
 
   const res = await fetch(
     `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
@@ -29,17 +35,23 @@ async function sendWhatsAppMessage(to, message) {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to,
+        to: normalizedTo,
         type: "text",
-        text: { body: message },
+        text: {
+          preview_url: true,
+          body: message,
+        },
       }),
     }
   );
 
+  const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`WHATSAPP SEND ERROR: ${t}`);
+    throw new Error(`WHATSAPP SEND ERROR: ${JSON.stringify(data)}`);
   }
+
+  return data;
 }
 
 async function supabaseUpdateByToken(token, paymentId) {
@@ -115,25 +127,26 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // Mercado Pago costuma mandar: { action, data: { id } } (ou variações)
     const paymentId = body?.data?.id || body?.id;
     if (!paymentId) {
       console.log("MP WEBHOOK RECEIVED (no payment id):", body);
       return json({ ok: true });
     }
 
-    // Buscar pagamento real no Mercado Pago
-    const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: { Authorization: `Bearer ${MP_TOKEN}` },
-    });
+    const mpRes = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: { Authorization: `Bearer ${MP_TOKEN}` },
+      }
+    );
 
     const mpData = await mpRes.json();
     if (!mpRes.ok) {
       console.error("MP FETCH PAYMENT ERROR:", mpData);
-      return json({ ok: true }); // responde 200 para MP não ficar re-tentando infinito
+      return json({ ok: true });
     }
 
-    const status = mpData?.status; // "approved" quando pago
+    const status = mpData?.status;
     const token = mpData?.metadata?.token;
 
     console.log("MP PAYMENT FETCHED:", {
@@ -142,36 +155,43 @@ export async function POST(req) {
       hasToken: Boolean(token),
     });
 
-    // Só libera quando realmente aprovado
     if (status === "approved" && token) {
-      // 1) marca como paid no Supabase
       await supabaseUpdateByToken(token, mpData.id);
-      console.log("PURCHASE MARKED PAID:", { token, paymentId: mpData.id });
+      console.log("PURCHASE MARKED PAID:", token);
 
-      // 2) pega phone + delivered_at para enviar WhatsApp (sem duplicar)
       const purchase = await supabaseGetPurchaseByToken(token);
 
-      if (purchase && purchase.status === "paid" && !purchase.delivered_at && purchase.phone) {
-        const baseUrl = process.env.PUBLIC_BASE_URL;
-        if (!baseUrl) throw new Error("ENV MISSING: PUBLIC_BASE_URL");
-
-        const link = `${baseUrl}/a/${token}`;
-        const msg =
-          `✅ Pagamento aprovado!\n\n` +
-          `Acesse seu conteúdo aqui:\n${link}\n\n` +
-          `Token: ${token}`;
-
-        await sendWhatsAppMessage(purchase.phone, msg);
-        await supabaseMarkDelivered(token);
-
-        console.log("WHATSAPP SENT + DELIVERED MARKED:", { phone: purchase.phone });
-      } else {
-        console.log("WHATSAPP SKIPPED:", {
-          hasPurchase: Boolean(purchase),
-          delivered_at: purchase?.delivered_at || null,
-          hasPhone: Boolean(purchase?.phone),
-        });
+      if (!purchase) {
+        console.log("PURCHASE NOT FOUND:", token);
+        return json({ ok: true });
       }
+
+      if (purchase.delivered_at) {
+        console.log("WHATSAPP ALREADY SENT:", token);
+        return json({ ok: true });
+      }
+
+      if (!purchase.phone) {
+        console.log("NO PHONE FOR TOKEN:", token);
+        return json({ ok: true });
+      }
+
+      const baseUrl = process.env.PUBLIC_BASE_URL;
+      if (!baseUrl) throw new Error("ENV MISSING: PUBLIC_BASE_URL");
+
+      const link = `${baseUrl}/a/${token}`;
+      const message =
+        `✅ Pagamento aprovado!\n\n` +
+        `Acesse seu conteúdo:\n${link}\n\n` +
+        `Token: ${token}`;
+
+      const wa = await sendWhatsAppMessage(purchase.phone, message);
+      await supabaseMarkDelivered(token);
+
+      console.log("WHATSAPP SENT:", {
+        to: purchase.phone,
+        wa_id: wa?.messages?.[0]?.id,
+      });
     }
 
     return json({ ok: true });
