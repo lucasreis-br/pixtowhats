@@ -1,9 +1,14 @@
-import { notFound, redirect } from "next/navigation";
+// app/a/[token]/page.tsx
+import fs from "fs";
+import path from "path";
+import { notFound } from "next/navigation";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-async function getPurchase(token: string) {
+async function isTokenPaid(token: string) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return false;
+
   const url =
     `${SUPABASE_URL}/rest/v1/purchases` +
     `?token=eq.${encodeURIComponent(token)}` +
@@ -18,10 +23,9 @@ async function getPurchase(token: string) {
     cache: "no-store",
   });
 
-  if (!r.ok) return null;
-
+  if (!r.ok) return false;
   const rows = await r.json().catch(() => []);
-  return rows?.[0] || null;
+  return rows?.[0]?.status === "paid";
 }
 
 export default async function AccessPage({
@@ -32,21 +36,23 @@ export default async function AccessPage({
   const token = String(params?.token || "").trim();
   if (!token) notFound();
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("Missing SUPABASE env vars");
-  }
+  const ok = await isTokenPaid(token);
+  if (!ok) notFound(); // ou crie uma página "Aguardando pagamento"
 
-  const purchase = await getPurchase(token);
-  if (!purchase) notFound();
-
-  if (purchase.status !== "paid") {
-    redirect(`/comprar`);
-  }
+  const filePath = path.join(process.cwd(), "content", "ebook.html");
+  const html = fs.readFileSync(filePath, "utf-8");
 
   return (
-    <iframe
-      src={`/api/ebook?token=${encodeURIComponent(token)}`}
-      style={{ border: "none", width: "100vw", height: "100vh" }}
-    />
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Access</title>
+      </head>
+      <body
+        style={{ margin: 0 }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </html>
   );
 }
