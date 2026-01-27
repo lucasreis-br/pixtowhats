@@ -2,19 +2,24 @@
 
 import { useState } from "react";
 
+type PixResp = {
+  token?: string;
+  mp_payment_id?: string;
+  access_link?: string;
+  whatsapp_link?: string;
+  pix?: {
+    qr_code?: string;
+    qr_code_base64?: string;
+    qr_base64?: string; // compat
+  };
+};
+
 export default function ComprarPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Normalizado para o que o /api/create_purchase REALMENTE está retornando:
-  // { token, mp_payment_id, pix: { qr_code, qr_code_base64 } }
-  const [pix, setPix] = useState<{
-    qr_base64?: string; // imagem do QR (base64)
-    qr_code?: string; // copia e cola (texto)
-    payment_id?: string;
-    token?: string;
-  } | null>(null);
+  const [data, setData] = useState<PixResp | null>(null);
 
   function normalizeBR(raw: string) {
     const digits = (raw || "").replace(/\D/g, "");
@@ -24,7 +29,7 @@ export default function ComprarPage() {
 
   async function gerarPix() {
     setErr(null);
-    setPix(null);
+    setData(null);
 
     const normalized = normalizeBR(phone);
 
@@ -41,43 +46,14 @@ export default function ComprarPage() {
         body: JSON.stringify({ phone: normalized }),
       });
 
-      const data = await r.json().catch(() => ({}));
+      const j = (await r.json().catch(() => ({}))) as PixResp;
 
       if (!r.ok) {
-        setErr(data?.error || "Erro ao gerar Pix.");
+        setErr((j as any)?.error || "Erro ao gerar Pix.");
         return;
       }
 
-      // ✅ CORREÇÃO PRINCIPAL:
-      // os dados do Pix vêm dentro de data.pix.*
-      const qrBase64 =
-        data?.pix?.qr_code_base64 ||
-        data?.pix?.qr_base64 ||
-        data?.qr_code_base64 ||
-        data?.qr_base64 ||
-        data?.qrCodeBase64;
-
-      const qrCode =
-        data?.pix?.qr_code ||
-        data?.qr_code ||
-        data?.qrCode ||
-        data?.copiaecola ||
-        data?.pix_copy_paste;
-
-      const paymentId = data?.mp_payment_id || data?.payment_id || data?.id;
-
-      if (!qrBase64 && !qrCode) {
-        console.log("create_purchase response:", data);
-        setErr("A API gerou o pagamento, mas não retornou QR Code. Veja o console (F12).");
-        return;
-      }
-
-      setPix({
-        qr_base64: qrBase64,
-        qr_code: qrCode,
-        payment_id: paymentId ? String(paymentId) : undefined,
-        token: data?.token,
-      });
+      setData(j);
     } catch (e: any) {
       setErr(e?.message || "Erro inesperado.");
     } finally {
@@ -85,9 +61,10 @@ export default function ComprarPage() {
     }
   }
 
-  async function copiar() {
-    if (!pix?.qr_code) return;
-    await navigator.clipboard.writeText(pix.qr_code);
+  async function copiarPix() {
+    const code = data?.pix?.qr_code;
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
     alert("Copiado.");
   }
 
@@ -95,7 +72,7 @@ export default function ComprarPage() {
     <main style={{ maxWidth: 720, margin: "60px auto", padding: 24, fontFamily: "system-ui" }}>
       <h1 style={{ marginBottom: 8 }}>Pagamento via Pix</h1>
       <p style={{ marginTop: 0, opacity: 0.8 }}>
-        Digite seu WhatsApp para receber automaticamente o link e o token após o pagamento.
+        Sem Meta/Facebook: depois de pagar, clique no botão “Receber no WhatsApp” para abrir a mensagem já pronta.
       </p>
 
       <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
@@ -123,30 +100,30 @@ export default function ComprarPage() {
         {err && <p style={{ color: "crimson" }}>{err}</p>}
       </div>
 
-      {pix && (
+      {data && (
         <section style={{ marginTop: 28, padding: 18, border: "1px solid #ddd", borderRadius: 14 }}>
           <h2 style={{ marginTop: 0 }}>Pague com Pix</h2>
 
-          {pix.qr_base64 && (
+          {(data.pix?.qr_code_base64 || data.pix?.qr_base64) && (
             <div style={{ marginTop: 12 }}>
               <img
-                src={pix.qr_base64.startsWith("data:") ? pix.qr_base64 : `data:image/png;base64,${pix.qr_base64}`}
+                src={`data:image/png;base64,${data.pix?.qr_code_base64 || data.pix?.qr_base64}`}
                 alt="QR Code Pix"
                 style={{ width: 280, height: 280, objectFit: "contain", borderRadius: 12, border: "1px solid #eee" }}
               />
             </div>
           )}
 
-          {pix.qr_code && (
+          {data.pix?.qr_code && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontSize: 14, opacity: 0.8, marginBottom: 6 }}>Copia e cola</div>
               <textarea
                 readOnly
-                value={pix.qr_code}
+                value={data.pix.qr_code}
                 style={{ width: "100%", minHeight: 110, padding: 12, borderRadius: 12, border: "1px solid #ccc" }}
               />
               <button
-                onClick={copiar}
+                onClick={copiarPix}
                 style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, border: 0, cursor: "pointer" }}
               >
                 Copiar código Pix
@@ -154,9 +131,34 @@ export default function ComprarPage() {
             </div>
           )}
 
-          <p style={{ marginTop: 14, opacity: 0.85 }}>
-            Depois que o pagamento for aprovado, você vai receber a mensagem no WhatsApp com o link de acesso.
-          </p>
+          <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+            {data.whatsapp_link && (
+              <a
+                href={data.whatsapp_link}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "inline-block",
+                  textAlign: "center",
+                  padding: "12px 16px",
+                  borderRadius: 10,
+                  textDecoration: "none",
+                  border: "1px solid #ccc",
+                }}
+              >
+                Receber no WhatsApp (abrir mensagem pronta)
+              </a>
+            )}
+
+            {data.access_link && (
+              <div style={{ fontSize: 14, opacity: 0.85 }}>
+                Link de acesso (para conferência):<br />
+                <a href={data.access_link} target="_blank" rel="noreferrer">
+                  {data.access_link}
+                </a>
+              </div>
+            )}
+          </div>
         </section>
       )}
     </main>
