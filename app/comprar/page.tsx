@@ -7,17 +7,16 @@ export default function ComprarPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Resposta esperada do /api/create_purchase:
-  // ajuste os nomes se o seu endpoint retornar diferente.
+  // Normalizado para o que o /api/create_purchase REALMENTE está retornando:
+  // { token, mp_payment_id, pix: { qr_code, qr_code_base64 } }
   const [pix, setPix] = useState<{
-    qr_base64?: string;   // imagem do QR (base64)
-    qr_code?: string;     // copia e cola (texto)
+    qr_base64?: string; // imagem do QR (base64)
+    qr_code?: string; // copia e cola (texto)
     payment_id?: string;
     token?: string;
   } | null>(null);
 
   function normalizeBR(raw: string) {
-    // deixa só números e garante formato 55DDDNUMERO
     const digits = (raw || "").replace(/\D/g, "");
     if (digits.startsWith("55")) return digits;
     return "55" + digits;
@@ -29,7 +28,6 @@ export default function ComprarPage() {
 
     const normalized = normalizeBR(phone);
 
-    // validação simples: Brasil geralmente fica 12 ou 13 dígitos após "55"
     if (normalized.length < 12) {
       setErr("Digite seu WhatsApp com DDD. Ex: 31 99999-9999");
       return;
@@ -50,11 +48,34 @@ export default function ComprarPage() {
         return;
       }
 
-      // Tenta mapear alguns nomes comuns:
+      // ✅ CORREÇÃO PRINCIPAL:
+      // os dados do Pix vêm dentro de data.pix.*
+      const qrBase64 =
+        data?.pix?.qr_code_base64 ||
+        data?.pix?.qr_base64 ||
+        data?.qr_code_base64 ||
+        data?.qr_base64 ||
+        data?.qrCodeBase64;
+
+      const qrCode =
+        data?.pix?.qr_code ||
+        data?.qr_code ||
+        data?.qrCode ||
+        data?.copiaecola ||
+        data?.pix_copy_paste;
+
+      const paymentId = data?.mp_payment_id || data?.payment_id || data?.id;
+
+      if (!qrBase64 && !qrCode) {
+        console.log("create_purchase response:", data);
+        setErr("A API gerou o pagamento, mas não retornou QR Code. Veja o console (F12).");
+        return;
+      }
+
       setPix({
-        qr_base64: data?.qr_base64 || data?.qrCodeBase64 || data?.qr_code_base64,
-        qr_code: data?.qr_code || data?.qrCode || data?.copiaecola || data?.pix_copy_paste,
-        payment_id: data?.payment_id || data?.mp_payment_id || data?.id,
+        qr_base64: qrBase64,
+        qr_code: qrCode,
+        payment_id: paymentId ? String(paymentId) : undefined,
         token: data?.token,
       });
     } catch (e: any) {
