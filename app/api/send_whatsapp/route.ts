@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const WA_TOKEN =
   process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
 
 const WA_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
+// Preferimos PUBLIC_BASE_URL. SITE_URL é fallback.
 const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.SITE_URL;
 
 const INTERNAL_SECRET = process.env.WA_INTERNAL_SECRET; // opcional
@@ -23,7 +21,6 @@ function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
 }
 
-// GET só pra testar no navegador
 export async function GET() {
   return json({
     ok: true,
@@ -32,18 +29,25 @@ export async function GET() {
     hasToken: Boolean(WA_TOKEN),
     hasPhoneNumberId: Boolean(WA_PHONE_NUMBER_ID),
     baseUrl: BASE_URL || null,
+    hasTemplateName: Boolean(process.env.WHATSAPP_TEMPLATE_NAME),
+    templateName: process.env.WHATSAPP_TEMPLATE_NAME || null,
+    templateLang: process.env.WHATSAPP_TEMPLATE_LANG || null,
   });
 }
 
 export async function POST(req: Request) {
   try {
+    // Protege se você configurar WA_INTERNAL_SECRET
     if (INTERNAL_SECRET) {
       const secret = req.headers.get("x-internal-secret");
       if (secret !== INTERNAL_SECRET) return json({ error: "Unauthorized" }, 401);
     }
 
     if (!WA_TOKEN || !WA_PHONE_NUMBER_ID) {
-      return json({ error: "Missing WhatsApp env vars" }, 500);
+      return json(
+        { error: "Missing WhatsApp env vars (token/phone_number_id)" },
+        500
+      );
     }
 
     const body = await req.json().catch(() => ({}));
@@ -55,7 +59,10 @@ export async function POST(req: Request) {
 
     const link = BASE_URL ? `${BASE_URL}/a/${token}` : `/a/${token}`;
 
+    // ✅ Se não tiver janela de 24h, precisa TEMPLATE.
+    // Para teste, use hello_world (geralmente é en_US).
     const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
+    const templateLang = process.env.WHATSAPP_TEMPLATE_LANG || "en_US";
 
     const payload = templateName
       ? {
@@ -64,16 +71,9 @@ export async function POST(req: Request) {
           type: "template",
           template: {
             name: templateName,
-            language: { code: "pt_BR" },
-            components: [
-              {
-                type: "body",
-                parameters: [
-                  { type: "text", text: link },
-                  { type: "text", text: token },
-                ],
-              },
-            ],
+            language: { code: templateLang },
+            // Muitos templates (incluindo hello_world) NÃO precisam de components.
+            // Se você criar um template com variáveis, aí sim adiciona components.
           },
         }
       : {
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
           },
         };
 
-    const r = await fetch(
+    const resp = await fetch(
       `https://graph.facebook.com/v22.0/${WA_PHONE_NUMBER_ID}/messages`,
       {
         method: "POST",
@@ -98,16 +98,41 @@ export async function POST(req: Request) {
       }
     );
 
-    const data = await r.json().catch(() => ({}));
+    const raw = await resp.text(); // <- pega tudo, mesmo quando não é JSON
 
-    if (!r.ok) {
+    let parsed: any = null;
+    try {
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+
+    if (!resp.ok) {
+      // Agora você vai ver o erro real no console e na resposta do endpoint
       return json(
-        { error: "WhatsApp send failed", status: r.status, details: data },
+        {
+          error: "WhatsApp send failed",
+          status: resp.status,
+          wa_raw: raw || null,
+          wa_json: parsed,
+          usedTemplate: Boolean(templateName),
+          templateName: templateName || null,
+          templateLang,
+          to,
+        },
         500
       );
     }
 
-    return json({ ok: true, wa: data });
+    return json({
+      ok: true,
+      wa_raw: raw || null,
+      wa_json: parsed,
+      usedTemplate: Boolean(templateName),
+      templateName: templateName || null,
+      templateLang,
+      to,
+    });
   } catch (e: any) {
     return json({ error: e?.message || "Unexpected error" }, 500);
   }
