@@ -179,7 +179,7 @@ export async function POST(req) {
       const baseUrl = process.env.PUBLIC_BASE_URL;
       if (!baseUrl) throw new Error("ENV MISSING: PUBLIC_BASE_URL");
 
-      const link = `${baseUrl}/a/${token}`;
+      const link = `${baseUrl}/app?t=${token}`;
       const message =
         `✅ Pagamento aprovado!\n\n` +
         `Acesse seu conteúdo:\n${link}\n\n` +
