@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     if (!to || to.length < 12) return json({ error: "Invalid 'to'" }, 400);
     if (!token) return json({ error: "Missing 'token'" }, 400);
 
-    const link = BASE_URL ? `${BASE_URL}/a/${token}` : `/a/${token}`;
+    const link = BASE_URL ? `${BASE_URL}/app?t=${token}` : `/app?t=${token}`;
 
     // ✅ Se não tiver janela de 24h, precisa TEMPLATE.
     // Para teste, use hello_world (geralmente é en_US).
