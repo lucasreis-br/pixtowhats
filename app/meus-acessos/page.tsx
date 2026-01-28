@@ -1,144 +1,41 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-type SavedAccess = {
-  token: string;
-  createdAt: string;
-  lastSeenAt?: string;
-};
-
-const LS_LIST_KEY = "pixwa_accesses_v1";
-const LS_LAST_KEY = "pixwa_last_token_v1";
-const CK_LAST_KEY = "pixwa_last_token_v1";
-
-function readCookie(name: string) {
-  try {
-    const parts = document.cookie.split(";").map((x) => x.trim());
-    for (const p of parts) {
-      if (!p) continue;
-      const [k, ...rest] = p.split("=");
-      if (decodeURIComponent(k) === name) return decodeURIComponent(rest.join("="));
-    }
-    return "";
-  } catch {
-    return "";
-  }
-}
-
-function safeParseJSON(raw: string | null) {
-  try {
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function loadListSafe(): SavedAccess[] {
-  try {
-    const raw = localStorage.getItem(LS_LIST_KEY);
-    const arr = safeParseJSON(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
-  } catch {
-    return [];
-  }
-}
-
-function saveListSafe(list: SavedAccess[]) {
-  try {
-    localStorage.setItem(LS_LIST_KEY, JSON.stringify(list.slice(0, 50)));
-  } catch {}
-}
-
-function normalizeToken(t: any) {
-  return String(t || "").trim();
-}
-
-function ensureTokenInList(list: SavedAccess[], token: string) {
-  const t = normalizeToken(token);
-  if (!t) return list;
-
-  const now = new Date().toISOString();
-  const idx = list.findIndex((x) => x.token === t);
-  if (idx >= 0) {
-    const next = [...list];
-    next[idx] = { ...next[idx], lastSeenAt: next[idx].lastSeenAt || now };
-    return next;
-  }
-  return [{ token: t, createdAt: now, lastSeenAt: now }, ...list].slice(0, 50);
-}
+import { loadAccesses, saveAll, type SavedAccess } from "@/app/lib/accessStore";
 
 export default function MeusAcessosPage() {
-  const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<SavedAccess[]>([]);
   const [origin, setOrigin] = useState("");
-  const [debug, setDebug] = useState<{ listCount: number; lastLS: string; lastCK: string; finalCount: number }>({
-    listCount: 0,
-    lastLS: "",
-    lastCK: "",
-    finalCount: 0,
-  });
 
   useEffect(() => {
-    setMounted(true);
-
-    // Só roda no client
-    try {
-      setOrigin(window.location.origin);
-    } catch {}
-
-    let list = loadListSafe();
-    const listCount = list.length;
-
-    let lastLS = "";
-    try {
-      lastLS = normalizeToken(localStorage.getItem(LS_LAST_KEY));
-    } catch {}
-
-    let lastCK = "";
-    try {
-      lastCK = normalizeToken(readCookie(CK_LAST_KEY));
-    } catch {}
-
-    const last = lastLS || lastCK;
-    if (last) {
-      list = ensureTokenInList(list, last);
-      saveListSafe(list);
-    }
-
-    setItems(list);
-    setDebug({
-      listCount,
-      lastLS,
-      lastCK,
-      finalCount: list.length,
-    });
+    setOrigin(window.location.origin);
+    setItems(loadAccesses());
   }, []);
 
+  const hasItems = items.length > 0;
+
   const sorted = useMemo(() => {
-    return [...items].sort((a, b) => (b.lastSeenAt || b.createdAt).localeCompare(a.lastSeenAt || a.createdAt));
+    return [...items].sort((a, b) =>
+      (b.lastSeenAt || b.createdAt).localeCompare(a.lastSeenAt || a.createdAt)
+    );
   }, [items]);
 
   function openToken(token: string) {
     const now = new Date().toISOString();
     const next = items.map((x) => (x.token === token ? { ...x, lastSeenAt: now } : x));
     setItems(next);
-    saveListSafe(next);
-    window.location.assign(`/a/${token}`);
+    saveAll(next);
+    window.location.href = `/a/${token}`;
   }
 
   function removeToken(token: string) {
     const next = items.filter((x) => x.token !== token);
     setItems(next);
-    saveListSafe(next);
+    saveAll(next);
   }
 
   function clearAll() {
-    try {
-      localStorage.removeItem(LS_LIST_KEY);
-      localStorage.removeItem(LS_LAST_KEY);
-    } catch {}
+    localStorage.removeItem("pixwa_accesses_v1");
     setItems([]);
   }
 
@@ -160,23 +57,10 @@ export default function MeusAcessosPage() {
       </header>
 
       <section className="card">
-        {!mounted ? (
-          <div className="empty">
-            <div className="h2">Carregando…</div>
-            <div className="sub">Inicializando “Meus acessos”.</div>
-          </div>
-        ) : sorted.length === 0 ? (
+        {!hasItems ? (
           <div className="empty">
             <div className="h2">Nenhum acesso salvo ainda</div>
-            <div className="sub">Após o pagamento, o token é salvo automaticamente aqui.</div>
-
-            <div className="debug">
-              <div><strong>DEBUG</strong></div>
-              <div>listCount: {debug.listCount}</div>
-              <div>lastLS: {debug.lastLS || "(vazio)"}</div>
-              <div>lastCK: {debug.lastCK || "(vazio)"}</div>
-              <div>finalCount: {debug.finalCount}</div>
-            </div>
+            <div className="sub">Dica: sempre que você abrir o conteúdo (/a/&lt;token&gt;), ele é salvo automaticamente aqui.</div>
           </div>
         ) : (
           <>
@@ -187,14 +71,6 @@ export default function MeusAcessosPage() {
               </button>
             </div>
 
-            <div className="debug" style={{ marginBottom: 12 }}>
-              <div><strong>DEBUG</strong></div>
-              <div>listCount: {debug.listCount}</div>
-              <div>lastLS: {debug.lastLS || "(vazio)"}</div>
-              <div>lastCK: {debug.lastCK || "(vazio)"}</div>
-              <div>finalCount: {debug.finalCount}</div>
-            </div>
-
             <div className="list">
               {sorted.map((x) => {
                 const link = origin ? `${origin}/a/${x.token}` : `/a/${x.token}`;
@@ -203,8 +79,8 @@ export default function MeusAcessosPage() {
                     <div className="left">
                       <div className="token">{x.token}</div>
                       <div className="meta">
-                        Criado: {new Date(x.createdAt).toLocaleString()}
-                        {x.lastSeenAt ? ` • Último acesso: ${new Date(x.lastSeenAt).toLocaleString()}` : ""}
+                        Criado: {new Date(x.createdAt).toLocaleString()}{" "}
+                        {x.lastSeenAt ? `• Último acesso: ${new Date(x.lastSeenAt).toLocaleString()}` : ""}
                       </div>
                       <div className="link">{link}</div>
                     </div>
@@ -235,48 +111,24 @@ export default function MeusAcessosPage() {
           color: #e5e7eb;
           background: #070b12;
         }
-        .wrap {
-          max-width: 980px;
-          margin: 0 auto;
-          padding: 18px 16px 80px;
-          position: relative;
-        }
+        .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 80px; position: relative; }
         .bg {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
+          position: fixed; inset: 0; pointer-events: none;
           background:
             radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
         }
         .top {
-          position: sticky;
-          top: 0;
-          z-index: 10;
+          position: sticky; top: 0; z-index: 10;
           background: rgba(7, 11, 18, 0.72);
           backdrop-filter: saturate(180%) blur(10px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 14px 0;
-          margin-bottom: 18px;
+          padding: 14px 0; margin-bottom: 18px;
         }
-        .titleRow {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .title {
-          font-weight: 800;
-          font-size: 22px;
-          letter-spacing: 0.2px;
-        }
-        .sub {
-          color: #a1a1aa;
-          font-size: 14px;
-          line-height: 1.5;
-          margin-top: 6px;
-        }
+        .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .title { font-weight: 800; font-size: 22px; letter-spacing: 0.2px; }
+        .sub { color: #a1a1aa; font-size: 14px; line-height: 1.5; margin-top: 6px; }
         .card {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 16px;
@@ -285,24 +137,10 @@ export default function MeusAcessosPage() {
           padding: 18px 16px;
           margin-bottom: 18px;
         }
-        .h2 {
-          font-weight: 700;
-          font-size: 18px;
-        }
-        .empty {
-          padding: 18px 4px;
-        }
-        .rowTop {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .list {
-          display: grid;
-          gap: 10px;
-        }
+        .h2 { font-weight: 700; font-size: 18px; }
+        .empty { padding: 18px 4px; }
+        .rowTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+        .list { display: grid; gap: 10px; }
         .item {
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.03);
@@ -318,24 +156,9 @@ export default function MeusAcessosPage() {
           color: #e5e7eb;
           word-break: break-all;
         }
-        .meta {
-          margin-top: 6px;
-          color: #a1a1aa;
-          font-size: 12px;
-        }
-        .link {
-          margin-top: 8px;
-          color: #93c5fd;
-          font-size: 12px;
-          word-break: break-all;
-        }
-        .actions {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          min-width: 160px;
-          justify-content: center;
-        }
+        .meta { margin-top: 6px; color: #a1a1aa; font-size: 12px; }
+        .link { margin-top: 8px; color: #93c5fd; font-size: 12px; word-break: break-all; }
+        .actions { display: flex; flex-direction: column; gap: 8px; min-width: 160px; justify-content: center; }
         .btn {
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
@@ -350,33 +173,11 @@ export default function MeusAcessosPage() {
           align-items: center;
           justify-content: center;
         }
-        .primary {
-          background: rgba(147, 197, 253, 0.16);
-          border-color: rgba(147, 197, 253, 0.22);
-        }
-        .danger {
-          border-color: rgba(248, 113, 113, 0.25);
-          background: rgba(248, 113, 113, 0.12);
-        }
-        .debug {
-          margin-top: 14px;
-          font-size: 12px;
-          color: #a1a1aa;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.03);
-          padding: 10px 12px;
-          border-radius: 12px;
-          word-break: break-all;
-        }
+        .primary { background: rgba(147, 197, 253, 0.16); border-color: rgba(147, 197, 253, 0.22); }
+        .danger { border-color: rgba(248, 113, 113, 0.25); background: rgba(248, 113, 113, 0.12); }
         @media (max-width: 900px) {
-          .item {
-            grid-template-columns: 1fr;
-          }
-          .actions {
-            flex-direction: row;
-            flex-wrap: wrap;
-            min-width: 0;
-          }
+          .item { grid-template-columns: 1fr; }
+          .actions { flex-direction: row; flex-wrap: wrap; min-width: 0; }
         }
       `}</style>
     </main>
