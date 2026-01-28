@@ -33,14 +33,19 @@ export default function ComprarPage() {
   const [paid, setPaid] = useState(false);
   const [checking, setChecking] = useState(false);
 
+  // evita múltiplos redirects
+  const [redirecting, setRedirecting] = useState(false);
+
   const accessLink = useMemo(() => {
     if (!pix?.token) return "";
+    // window só existe no client; está ok porque este componente é "use client"
     return `${window.location.origin}/a/${pix.token}`;
   }, [pix?.token]);
 
   async function gerarPix() {
     setErr(null);
     setPaid(false);
+    setRedirecting(false);
     setPix(null);
 
     const normalized = normalizeBR(phone);
@@ -70,7 +75,8 @@ export default function ComprarPage() {
         mp_payment_id: data?.mp_payment_id || data?.payment_id || data?.id,
         pix: {
           qr_code: data?.pix?.qr_code ?? data?.qr_code,
-          qr_code_base64: data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
+          qr_code_base64:
+            data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
         },
       });
     } catch (e: any) {
@@ -98,22 +104,32 @@ export default function ComprarPage() {
     let timer: any = null;
 
     async function check() {
-      if (!pix?.token || paid) return;
+      if (!pix?.token || paid || redirecting) return;
       setChecking(true);
       try {
-        const r = await fetch(`/api/check_purchase?token=${encodeURIComponent(pix.token)}`, {
-          cache: "no-store",
-        });
+        const r = await fetch(
+          `/api/check_purchase?token=${encodeURIComponent(pix.token)}`,
+          {
+            cache: "no-store",
+          }
+        );
         const data = await r.json().catch(() => ({}));
+
         if (r.ok && data?.status === "paid") {
           setPaid(true);
+
+          // Redireciona automaticamente após confirmar
+          setRedirecting(true);
+          setTimeout(() => {
+            window.location.href = `${window.location.origin}/a/${pix.token}`;
+          }, 2000);
         }
       } finally {
         setChecking(false);
       }
     }
 
-    if (pix?.token && !paid) {
+    if (pix?.token && !paid && !redirecting) {
       check();
       timer = setInterval(check, 3000);
     }
@@ -121,7 +137,7 @@ export default function ComprarPage() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [pix?.token, paid]);
+  }, [pix?.token, paid, redirecting]);
 
   return (
     <main className="wrap">
@@ -148,7 +164,11 @@ export default function ComprarPage() {
             className="input"
           />
 
-          <button onClick={gerarPix} disabled={loading} className="btn btnPrimary">
+          <button
+            onClick={gerarPix}
+            disabled={loading}
+            className="btn btnPrimary"
+          >
             {loading ? "Gerando..." : "Gerar Pix"}
           </button>
         </div>
@@ -193,21 +213,30 @@ export default function ComprarPage() {
 
               <div className="statusBox">
                 <div className={`pill ${paid ? "pillOk" : "pillWait"}`}>
-                  {paid ? "✅ Pagamento aprovado" : checking ? "⏳ Verificando pagamento..." : "⏳ Aguardando pagamento"}
+                  {paid
+                    ? "✅ Pagamento aprovado"
+                    : checking
+                    ? "⏳ Verificando pagamento..."
+                    : "⏳ Aguardando pagamento"}
                 </div>
 
-                {/* LINK SÓ APARECE DEPOIS QUE PAGAR */}
+                {/* Depois de pagar: mensagem + redirect + fallback manual */}
                 {paid && (
                   <div className="afterPay">
-                    <div className="label">Link de acesso</div>
-                    <div className="linkRow">
+                    <p className="muted small" style={{ marginTop: 10 }}>
+                      Redirecionando para seu conteúdo...
+                    </p>
+
+                    {/* fallback manual, caso algo falhe */}
+                    <div className="linkRow" style={{ marginTop: 8 }}>
                       <a className="link" href={accessLink} target="_blank" rel="noreferrer">
-                        {accessLink}
+                        Abrir manualmente
                       </a>
                       <button className="btn" onClick={copiarLink}>
                         Copiar link
                       </button>
                     </div>
+
                     <div className="muted small">Token: {pix.token}</div>
                   </div>
                 )}
