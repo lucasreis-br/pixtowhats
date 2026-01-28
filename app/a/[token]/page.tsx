@@ -2,6 +2,7 @@
 import fs from "fs";
 import path from "path";
 import { notFound } from "next/navigation";
+import SaveAccessClient from "./SaveAccessClient";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -37,7 +38,7 @@ export default async function AccessPage({
   if (!token) notFound();
 
   const ok = await isTokenPaid(token);
-  if (!ok) notFound(); // ou crie uma página "Aguardando pagamento"
+  if (!ok) notFound();
 
   const filePath = path.join(process.cwd(), "content", "ebook.html");
   const html = fs.readFileSync(filePath, "utf-8");
@@ -49,10 +50,14 @@ export default async function AccessPage({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Access</title>
       </head>
-      <body
-        style={{ margin: 0 }}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+
+      <body style={{ margin: 0 }}>
+        {/* ✅ salva o token no localStorage sempre que alguém abrir /a/<token> */}
+        <SaveAccessClient token={token} />
+
+        {/* seu ebook */}
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+      </body>
     </html>
   );
 }
