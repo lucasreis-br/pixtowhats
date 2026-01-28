@@ -115,15 +115,31 @@ export default function ComprarPage() {
         );
         const data = await r.json().catch(() => ({}));
 
-        if (r.ok && data?.status === "paid") {
-          setPaid(true);
+        iif (r.ok && data?.status === "paid") {
+  setPaid(true);
 
-          // Redireciona automaticamente após confirmar
-          setRedirecting(true);
-          setTimeout(() => {
-            window.location.href = `${window.location.origin}/a/${pix.token}`;
-          }, 2000);
-        }
+  // salva o link/token no aparelho do cliente (histórico interno)
+  try {
+    const item = {
+      token: pix.token,
+      link: `${window.location.origin}/a/${pix.token}`,
+      paid_at: new Date().toISOString(),
+    };
+
+    localStorage.setItem("last_purchase", JSON.stringify(item));
+
+    const listRaw = localStorage.getItem("purchases_list");
+    const list = listRaw ? JSON.parse(listRaw) : [];
+    const next = [item, ...list].slice(0, 5); // guarda os últimos 5
+    localStorage.setItem("purchases_list", JSON.stringify(next));
+  } catch {}
+
+  setRedirecting(true);
+  setTimeout(() => {
+    window.location.href = `${window.location.origin}/a/${pix.token}`;
+  }, 2000);
+}
+
       } finally {
         setChecking(false);
       }
