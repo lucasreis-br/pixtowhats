@@ -1,85 +1,290 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Saved = { token: string; link: string; paid_at: string };
+type SavedAccess = {
+  token: string;
+  createdAt: string;
+  lastSeenAt?: string;
+};
+
+const LS_KEY = "pixwa_accesses_v1";
+
+function loadAccesses(): SavedAccess[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
+  } catch {
+    return [];
+  }
+}
+
+function saveAll(list: SavedAccess[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(list.slice(0, 50)));
+}
 
 export default function MeusAcessosPage() {
-  const [items, setItems] = useState<Saved[]>([]);
+  const [items, setItems] = useState<SavedAccess[]>([]);
+  const [origin, setOrigin] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("purchases_list");
-      const list = raw ? JSON.parse(raw) : [];
-      setItems(Array.isArray(list) ? list : []);
-    } catch {
-      setItems([]);
-    }
+    setOrigin(window.location.origin);
+    setItems(loadAccesses());
   }, []);
 
-  async function copiar(link: string) {
-    await navigator.clipboard.writeText(link);
-    alert("Link copiado.");
+  const hasItems = items.length > 0;
+
+  const sorted = useMemo(() => {
+    return [...items].sort((a, b) => (b.lastSeenAt || b.createdAt).localeCompare(a.lastSeenAt || a.createdAt));
+  }, [items]);
+
+  function openToken(token: string) {
+    const now = new Date().toISOString();
+    const next = items.map((x) => (x.token === token ? { ...x, lastSeenAt: now } : x));
+    setItems(next);
+    saveAll(next);
+    window.location.href = `/a/${token}`;
   }
 
-  async function compartilhar(link: string) {
-    // se o celular suportar Share, abre o menu de compartilhar (WhatsApp/manual)
-    // se não suportar, cai no copiar
-    // @ts-ignore
-    if (navigator.share) {
-      try {
-        // @ts-ignore
-        await navigator.share({ title: "Meu acesso", text: "Meu link de acesso", url: link });
-        return;
-      } catch {}
-    }
-    await copiar(link);
+  function removeToken(token: string) {
+    const next = items.filter((x) => x.token !== token);
+    setItems(next);
+    saveAll(next);
+  }
+
+  function clearAll() {
+    localStorage.removeItem(LS_KEY);
+    setItems([]);
   }
 
   return (
-    <main style={{ maxWidth: 900, margin: "40px auto", padding: 16, fontFamily: "system-ui" }}>
-      <h1 style={{ marginBottom: 6 }}>Meus acessos</h1>
-      <p style={{ opacity: 0.8, marginTop: 0 }}>
-        Se você já pagou neste aparelho, seus links ficam salvos aqui.
-      </p>
+    <main className="wrap">
+      <div className="bg" />
 
-      {items.length === 0 ? (
-        <div style={{ padding: 16, border: "1px solid rgba(0,0,0,.15)", borderRadius: 12 }}>
-          Nenhum acesso salvo neste aparelho ainda.
+      <header className="top">
+        <div className="titleRow">
+          <div>
+            <div className="title">Meus acessos</div>
+            <div className="sub">Seus links ficam salvos neste dispositivo/navegador.</div>
+          </div>
+
+          <a className="btn" href="/comprar">
+            Comprar
+          </a>
         </div>
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          {items.map((it) => (
-            <div
-              key={it.token}
-              style={{ padding: 14, border: "1px solid rgba(0,0,0,.15)", borderRadius: 12 }}
-            >
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
-                Pago em: {new Date(it.paid_at).toLocaleString()}
-              </div>
-              <div style={{ marginTop: 8, wordBreak: "break-all" }}>{it.link}</div>
+      </header>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-                <a href={it.link} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,.2)", textDecoration: "none" }}>
-                  Abrir
-                </a>
-                <button
-                  onClick={() => copiar(it.link)}
-                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,.2)", cursor: "pointer" }}
-                >
-                  Copiar
-                </button>
-                <button
-                  onClick={() => compartilhar(it.link)}
-                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,.2)", cursor: "pointer" }}
-                >
-                  Compartilhar
-                </button>
-              </div>
+      <section className="card">
+        {!hasItems ? (
+          <div className="empty">
+            <div className="h2">Nenhum acesso salvo ainda</div>
+            <div className="sub">Após o pagamento, o token é salvo automaticamente aqui.</div>
+          </div>
+        ) : (
+          <>
+            <div className="rowTop">
+              <div className="h2">Acessos salvos</div>
+              <button className="btn danger" onClick={clearAll}>
+                Limpar tudo
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="list">
+              {sorted.map((x) => {
+                const link = origin ? `${origin}/a/${x.token}` : `/a/${x.token}`;
+                return (
+                  <div key={x.token} className="item">
+                    <div className="left">
+                      <div className="token">{x.token}</div>
+                      <div className="meta">
+                        Criado: {new Date(x.createdAt).toLocaleString()}{" "}
+                        {x.lastSeenAt ? `• Último acesso: ${new Date(x.lastSeenAt).toLocaleString()}` : ""}
+                      </div>
+                      <div className="link">{link}</div>
+                    </div>
+
+                    <div className="actions">
+                      <button className="btn primary" onClick={() => openToken(x.token)}>
+                        Abrir
+                      </button>
+                      <button className="btn" onClick={() => navigator.clipboard.writeText(link)}>
+                        Copiar link
+                      </button>
+                      <button className="btn danger" onClick={() => removeToken(x.token)}>
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
+      <style jsx>{`
+        :global(body) {
+          margin: 0;
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+          color: #e5e7eb;
+          background: #070b12;
+        }
+
+        .wrap {
+          max-width: 980px;
+          margin: 0 auto;
+          padding: 18px 16px 80px;
+          position: relative;
+        }
+
+        .bg {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
+            radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
+            linear-gradient(180deg, #070b12 0%, #0b1220 100%);
+        }
+
+        .top {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          background: rgba(7, 11, 18, 0.72);
+          backdrop-filter: saturate(180%) blur(10px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 14px 0;
+          margin-bottom: 18px;
+        }
+
+        .titleRow {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .title {
+          font-weight: 800;
+          font-size: 22px;
+          letter-spacing: 0.2px;
+        }
+
+        .sub {
+          color: #a1a1aa;
+          font-size: 14px;
+          line-height: 1.5;
+          margin-top: 6px;
+        }
+
+        .card {
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          background: rgba(15, 23, 42, 0.72);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+          padding: 18px 16px;
+          margin-bottom: 18px;
+        }
+
+        .h2 {
+          font-weight: 700;
+          font-size: 18px;
+        }
+
+        .empty {
+          padding: 18px 4px;
+        }
+
+        .rowTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .item {
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 14px;
+          padding: 14px;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 12px;
+        }
+
+        .token {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+          font-size: 13px;
+          color: #e5e7eb;
+          word-break: break-all;
+        }
+
+        .meta {
+          margin-top: 6px;
+          color: #a1a1aa;
+          font-size: 12px;
+        }
+
+        .link {
+          margin-top: 8px;
+          color: #93c5fd;
+          font-size: 12px;
+          word-break: break-all;
+        }
+
+        .actions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 160px;
+          justify-content: center;
+        }
+
+        .btn {
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          color: #e5e7eb;
+          padding: 10px 12px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 14px;
+          white-space: nowrap;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .primary {
+          background: rgba(147, 197, 253, 0.16);
+          border-color: rgba(147, 197, 253, 0.22);
+        }
+
+        .danger {
+          border-color: rgba(248, 113, 113, 0.25);
+          background: rgba(248, 113, 113, 0.12);
+        }
+
+        @media (max-width: 900px) {
+          .item {
+            grid-template-columns: 1fr;
+          }
+          .actions {
+            flex-direction: row;
+            flex-wrap: wrap;
+            min-width: 0;
+          }
+        }
+      `}</style>
     </main>
   );
 }
