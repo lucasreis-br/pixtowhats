@@ -175,27 +175,40 @@ export default function ComprarPage() {
   }, [pix?.token, paid]);
 
   // ✅ Quando pagar: salva de forma robusta + redireciona
-  useEffect(() => {
+   useEffect(() => {
     if (!paid || !pix?.token) return;
 
-    // 1) salva imediatamente
-    saveAccessEverywhere(pix.token);
+    // salva AGORA (antes de qualquer coisa)
+    try {
+      const token = pix.token;
+      const now = new Date().toISOString();
 
-    // 2) garante que o browser "assentou" antes do redirect
-    const go = () => {
-      // salva de novo (redundância)
-      saveAccessEverywhere(pix.token);
+      // lista
+      const raw = localStorage.getItem("pixwa_accesses_v1");
+      const arr = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(arr) ? arr : [];
+      const idx = list.findIndex((x: any) => x?.token === token);
 
-      // pequeno delay só pra dar tempo do usuário ver o ✅
+      if (idx >= 0) list[idx] = { ...list[idx], lastSeenAt: now };
+      else list.unshift({ token, createdAt: now, lastSeenAt: now });
+
+      localStorage.setItem("pixwa_accesses_v1", JSON.stringify(list.slice(0, 50)));
+
+      // “último token”
+      localStorage.setItem("pixwa_last_token_v1", token);
+      document.cookie = `pixwa_last_token_v1=${encodeURIComponent(token)}; Max-Age=${365 * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+    } catch {}
+
+    // dá 1 frame + delay curto e redireciona
+    const raf = requestAnimationFrame(() => {
       setTimeout(() => {
         window.location.assign(`/a/${pix.token}`);
       }, 700);
-    };
+    });
 
-    // requestAnimationFrame ajuda a evitar corrida em alguns navegadores
-    const raf = requestAnimationFrame(go);
     return () => cancelAnimationFrame(raf);
   }, [paid, pix?.token]);
+
 
   return (
     <main className="wrap">
