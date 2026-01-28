@@ -8,11 +8,27 @@ type SavedAccess = {
   lastSeenAt?: string;
 };
 
-const LS_KEY = "pixwa_accesses_v1";
+const LS_LIST_KEY = "pixwa_accesses_v1";
+const LS_LAST_KEY = "pixwa_last_token_v1";
+const CK_LAST_KEY = "pixwa_last_token_v1";
 
-function loadAccesses(): SavedAccess[] {
+function readCookie(name: string) {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const parts = document.cookie.split(";").map((x) => x.trim());
+    for (const p of parts) {
+      if (!p) continue;
+      const [k, ...rest] = p.split("=");
+      if (decodeURIComponent(k) === name) return decodeURIComponent(rest.join("="));
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function loadList(): SavedAccess[] {
+  try {
+    const raw = localStorage.getItem(LS_LIST_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(arr)) return [];
     return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
@@ -21,8 +37,30 @@ function loadAccesses(): SavedAccess[] {
   }
 }
 
-function saveAll(list: SavedAccess[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list.slice(0, 50)));
+function saveList(list: SavedAccess[]) {
+  try {
+    localStorage.setItem(LS_LIST_KEY, JSON.stringify(list.slice(0, 50)));
+  } catch {}
+}
+
+function normalizeToken(t: string) {
+  return String(t || "").trim();
+}
+
+function ensureTokenInList(list: SavedAccess[], token: string) {
+  const t = normalizeToken(token);
+  if (!t) return list;
+
+  const now = new Date().toISOString();
+  const idx = list.findIndex((x) => x.token === t);
+
+  if (idx >= 0) {
+    const next = [...list];
+    next[idx] = { ...next[idx], lastSeenAt: next[idx].lastSeenAt || now };
+    return next;
+  }
+
+  return [{ token: t, createdAt: now, lastSeenAt: now }, ...list].slice(0, 50);
 }
 
 export default function MeusAcessosPage() {
@@ -31,10 +69,24 @@ export default function MeusAcessosPage() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    setItems(loadAccesses());
-  }, []);
 
-  const hasItems = items.length > 0;
+    // 1) carrega lista
+    let list = loadList();
+
+    // 2) fallback: tenta puxar "último token" do localStorage/cookie e garantir na lista
+    let last = "";
+    try {
+      last = normalizeToken(localStorage.getItem(LS_LAST_KEY) || "");
+    } catch {}
+    if (!last) last = normalizeToken(readCookie(CK_LAST_KEY));
+
+    if (last) {
+      list = ensureTokenInList(list, last);
+      saveList(list);
+    }
+
+    setItems(list);
+  }, []);
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => (b.lastSeenAt || b.createdAt).localeCompare(a.lastSeenAt || a.createdAt));
@@ -44,18 +96,21 @@ export default function MeusAcessosPage() {
     const now = new Date().toISOString();
     const next = items.map((x) => (x.token === token ? { ...x, lastSeenAt: now } : x));
     setItems(next);
-    saveAll(next);
-    window.location.href = `/a/${token}`;
+    saveList(next);
+    window.location.assign(`/a/${token}`);
   }
 
   function removeToken(token: string) {
     const next = items.filter((x) => x.token !== token);
     setItems(next);
-    saveAll(next);
+    saveList(next);
   }
 
   function clearAll() {
-    localStorage.removeItem(LS_KEY);
+    try {
+      localStorage.removeItem(LS_LIST_KEY);
+      localStorage.removeItem(LS_LAST_KEY);
+    } catch {}
     setItems([]);
   }
 
@@ -77,10 +132,14 @@ export default function MeusAcessosPage() {
       </header>
 
       <section className="card">
-        {!hasItems ? (
+        {sorted.length === 0 ? (
           <div className="empty">
             <div className="h2">Nenhum acesso salvo ainda</div>
-            <div className="sub">Após o pagamento, o token é salvo automaticamente aqui.</div>
+            <div className="sub">
+              Após o pagamento, o token é salvo automaticamente aqui.
+              <br />
+              Se você estiver em modo anônimo/privado, o navegador pode não guardar.
+            </div>
           </div>
         ) : (
           <>
@@ -99,8 +158,8 @@ export default function MeusAcessosPage() {
                     <div className="left">
                       <div className="token">{x.token}</div>
                       <div className="meta">
-                        Criado: {new Date(x.createdAt).toLocaleString()}{" "}
-                        {x.lastSeenAt ? `• Último acesso: ${new Date(x.lastSeenAt).toLocaleString()}` : ""}
+                        Criado: {new Date(x.createdAt).toLocaleString()}
+                        {x.lastSeenAt ? ` • Último acesso: ${new Date(x.lastSeenAt).toLocaleString()}` : ""}
                       </div>
                       <div className="link">{link}</div>
                     </div>
