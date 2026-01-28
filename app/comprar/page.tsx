@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { saveAccess } from "@/app/lib/accessStore";
 
 type PixState = {
   token: string;
@@ -11,16 +12,6 @@ type PixState = {
   };
 };
 
-type SavedAccess = {
-  token: string;
-  createdAt: string; // ISO
-  lastSeenAt?: string; // ISO
-};
-
-const LS_LIST_KEY = "pixwa_accesses_v1";
-const LS_LAST_KEY = "pixwa_last_token_v1";
-const CK_LAST_KEY = "pixwa_last_token_v1";
-
 function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
 }
@@ -30,47 +21,6 @@ function normalizeBR(raw: string) {
   if (!digits) return "";
   if (digits.startsWith("55")) return digits;
   return "55" + digits;
-}
-
-function loadAccessesSafe(): SavedAccess[] {
-  try {
-    const raw = localStorage.getItem(LS_LIST_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
-  } catch {
-    return [];
-  }
-}
-
-function writeCookie(name: string, value: string, days = 365) {
-  try {
-    const maxAge = days * 24 * 60 * 60;
-    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
-  } catch {}
-}
-
-function saveAccessEverywhere(token: string) {
-  const now = new Date().toISOString();
-
-  // 1) salva lista
-  try {
-    const list = loadAccessesSafe();
-    const idx = list.findIndex((x) => x.token === token);
-
-    if (idx >= 0) list[idx] = { ...list[idx], lastSeenAt: now };
-    else list.unshift({ token, createdAt: now, lastSeenAt: now });
-
-    localStorage.setItem(LS_LIST_KEY, JSON.stringify(list.slice(0, 50)));
-  } catch {}
-
-  // 2) salva "último token"
-  try {
-    localStorage.setItem(LS_LAST_KEY, token);
-  } catch {}
-
-  // 3) salva cookie (fallback)
-  writeCookie(CK_LAST_KEY, token, 365);
 }
 
 export default function ComprarPage() {
@@ -125,7 +75,10 @@ export default function ComprarPage() {
         mp_payment_id: data?.mp_payment_id || data?.payment_id || data?.id,
         pix: {
           qr_code: data?.pix?.qr_code ?? data?.qr_code,
-          qr_code_base64: data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
+          qr_code_base64:
+            data?.pix?.qr_code_base64 ??
+            data?.qr_code_base64 ??
+            data?.qr_base64,
         },
       });
     } catch (e: any) {
@@ -156,9 +109,10 @@ export default function ComprarPage() {
       if (!pix?.token || paid) return;
       setChecking(true);
       try {
-        const r = await fetch(`/api/check_purchase?token=${encodeURIComponent(pix.token)}`, {
-          cache: "no-store",
-        });
+        const r = await fetch(
+          `/api/check_purchase?token=${encodeURIComponent(pix.token)}`,
+          { cache: "no-store" }
+        );
         const data = await r.json().catch(() => ({}));
         if (r.ok && data?.status === "paid") setPaid(true);
       } finally {
@@ -171,44 +125,27 @@ export default function ComprarPage() {
       timer = setInterval(check, 3000);
     }
 
-    return () => timer && clearInterval(timer);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   }, [pix?.token, paid]);
 
-  // ✅ Quando pagar: salva de forma robusta + redireciona
-   useEffect(() => {
+  // ✅ Quando pagar: salva (best-effort) + redireciona
+  useEffect(() => {
     if (!paid || !pix?.token) return;
 
-    // salva AGORA (antes de qualquer coisa)
+    // best-effort: tenta salvar aqui
     try {
-      const token = pix.token;
-      const now = new Date().toISOString();
-
-      // lista
-      const raw = localStorage.getItem("pixwa_accesses_v1");
-      const arr = raw ? JSON.parse(raw) : [];
-      const list = Array.isArray(arr) ? arr : [];
-      const idx = list.findIndex((x: any) => x?.token === token);
-
-      if (idx >= 0) list[idx] = { ...list[idx], lastSeenAt: now };
-      else list.unshift({ token, createdAt: now, lastSeenAt: now });
-
-      localStorage.setItem("pixwa_accesses_v1", JSON.stringify(list.slice(0, 50)));
-
-      // “último token”
-      localStorage.setItem("pixwa_last_token_v1", token);
-      document.cookie = `pixwa_last_token_v1=${encodeURIComponent(token)}; Max-Age=${365 * 24 * 60 * 60}; Path=/; SameSite=Lax`;
+      saveAccess(pix.token);
     } catch {}
 
-    // dá 1 frame + delay curto e redireciona
-    const raf = requestAnimationFrame(() => {
-      setTimeout(() => {
-        window.location.assign(`/a/${pix.token}`);
-      }, 700);
-    });
+    // redireciona (e /a/<token> também salva de novo)
+    const t = setTimeout(() => {
+      window.location.href = `/a/${pix.token}`;
+    }, 900);
 
-    return () => cancelAnimationFrame(raf);
+    return () => clearTimeout(t);
   }, [paid, pix?.token]);
-
 
   return (
     <main className="wrap">
@@ -240,8 +177,11 @@ export default function ComprarPage() {
             placeholder="Digite seu WhatsApp"
             className="input"
           />
-
-          <button onClick={gerarPix} disabled={loading} className="btn btnPrimary">
+          <button
+            onClick={gerarPix}
+            disabled={loading}
+            className="btn btnPrimary"
+          >
             {loading ? "Gerando..." : "Gerar Pix"}
           </button>
         </div>
@@ -286,12 +226,18 @@ export default function ComprarPage() {
 
               <div className="statusBox">
                 <div className={`pill ${paid ? "pillOk" : "pillWait"}`}>
-                  {paid ? "✅ Pagamento aprovado" : checking ? "⏳ Verificando pagamento..." : "⏳ Aguardando pagamento"}
+                  {paid
+                    ? "✅ Pagamento aprovado"
+                    : checking
+                    ? "⏳ Verificando pagamento..."
+                    : "⏳ Aguardando pagamento"}
                 </div>
 
                 {paid && (
                   <div className="afterPay">
-                    <div className="muted small">Salvando e redirecionando…</div>
+                    <div className="muted small">
+                      Salvando em “Meus acessos” e redirecionando…
+                    </div>
 
                     <div className="btnRow">
                       <a className="btn btnPrimary" href={`/a/${pix.token}`}>
@@ -325,72 +271,31 @@ export default function ComprarPage() {
           color: #e5e7eb;
           background: #070b12;
         }
-
-        .wrap {
-          max-width: 980px;
-          margin: 0 auto;
-          padding: 18px 16px 80px;
-          position: relative;
-        }
-
+        .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 80px; position: relative; }
         .bg {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
+          position: fixed; inset: 0; pointer-events: none;
           background:
             radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
         }
-
         .top {
-          position: sticky;
-          top: 0;
-          z-index: 10;
+          position: sticky; top: 0; z-index: 10;
           background: rgba(7, 11, 18, 0.72);
           backdrop-filter: saturate(180%) blur(10px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 14px 0;
-          margin-bottom: 18px;
+          padding: 14px 0; margin-bottom: 18px;
         }
-
-        .brand {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .titleRow {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .title {
-          font-weight: 800;
-          font-size: 22px;
-          letter-spacing: 0.2px;
-        }
-
+        .brand { display: flex; flex-direction: column; gap: 6px; }
+        .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .title { font-weight: 800; font-size: 22px; letter-spacing: 0.2px; }
         .miniLink {
-          font-size: 13px;
-          color: #93c5fd;
-          text-decoration: none;
+          font-size: 13px; color: #93c5fd; text-decoration: none;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          padding: 8px 10px;
-          border-radius: 999px;
-          white-space: nowrap;
+          padding: 8px 10px; border-radius: 999px; white-space: nowrap;
         }
-
-        .sub {
-          color: #a1a1aa;
-          font-size: 14px;
-          max-width: 70ch;
-          line-height: 1.5;
-        }
-
+        .sub { color: #a1a1aa; font-size: 14px; max-width: 70ch; line-height: 1.5; }
         .card {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 16px;
@@ -398,46 +303,17 @@ export default function ComprarPage() {
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
           padding: 18px 16px;
           margin-bottom: 18px;
-          position: relative;
-          overflow: hidden;
         }
-
-        .h2 {
-          margin: 0 0 8px;
-          font-size: 18px;
-          line-height: 1.2;
-        }
-
-        .muted {
-          margin: 0 0 14px;
-          color: #a1a1aa;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-
-        .small {
-          font-size: 12px;
-          margin-top: 8px;
-        }
-
-        .row {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 10px;
-          align-items: center;
-        }
-
+        .h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.2; }
+        .muted { margin: 0 0 14px; color: #a1a1aa; font-size: 14px; line-height: 1.5; }
+        .small { font-size: 12px; margin-top: 8px; }
+        .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
         .input {
-          width: 100%;
-          padding: 12px 12px;
-          border-radius: 12px;
+          width: 100%; padding: 12px 12px; border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          color: #e5e7eb;
-          font-size: 16px;
-          outline: none;
+          color: #e5e7eb; font-size: 16px; outline: none;
         }
-
         .btn {
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
@@ -452,126 +328,45 @@ export default function ComprarPage() {
           align-items: center;
           justify-content: center;
         }
-
-        .btnPrimary {
-          background: rgba(147, 197, 253, 0.16);
-          border-color: rgba(147, 197, 253, 0.22);
-        }
-
+        .btnPrimary { background: rgba(147, 197, 253, 0.16); border-color: rgba(147, 197, 253, 0.22); }
         .err {
-          margin-top: 12px;
-          color: #fca5a5;
+          margin-top: 12px; color: #fca5a5;
           background: rgba(220, 38, 38, 0.12);
           border: 1px solid rgba(220, 38, 38, 0.25);
-          padding: 10px 12px;
-          border-radius: 12px;
-          font-size: 14px;
+          padding: 10px 12px; border-radius: 12px; font-size: 14px;
         }
-
-        .split {
-          display: grid;
-          grid-template-columns: 1.1fr 0.9fr;
-          gap: 16px;
-          align-items: start;
-        }
-
+        .split { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; align-items: start; }
         .qrBox {
-          margin-top: 10px;
-          display: inline-block;
-          border-radius: 14px;
-          padding: 10px;
+          margin-top: 10px; display: inline-block; border-radius: 14px; padding: 10px;
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.03);
         }
-
-        .qr {
-          width: 280px;
-          height: 280px;
-          object-fit: contain;
-          border-radius: 12px;
-          background: #fff;
-        }
-
-        .label {
-          font-size: 13px;
-          color: #a1a1aa;
-          margin: 10px 0 6px;
-        }
-
+        .qr { width: 280px; height: 280px; object-fit: contain; border-radius: 12px; background: #fff; }
+        .label { font-size: 13px; color: #a1a1aa; margin: 10px 0 6px; }
         .textarea {
-          width: 100%;
-          min-height: 120px;
-          padding: 12px;
-          border-radius: 12px;
+          width: 100%; min-height: 120px; padding: 12px; border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          color: #e5e7eb;
-          resize: vertical;
-          font-size: 13px;
+          color: #e5e7eb; resize: vertical; font-size: 13px;
         }
-
-        .statusBox {
-          margin-top: 14px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
+        .statusBox { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .pill {
-          display: inline-block;
-          padding: 8px 10px;
-          border-radius: 999px;
-          font-size: 13px;
+          display: inline-block; padding: 8px 10px; border-radius: 999px; font-size: 13px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
         }
-
-        .pillOk {
-          border-color: rgba(34, 197, 94, 0.35);
-          background: rgba(34, 197, 94, 0.12);
-        }
-
-        .pillWait {
-          border-color: rgba(147, 197, 253, 0.25);
-          background: rgba(147, 197, 253, 0.08);
-        }
-
-        .afterPay {
-          margin-top: 12px;
-        }
-
-        .btnRow {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-top: 10px;
-        }
-
-        .linkTools {
-          margin-top: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
+        .pillOk { border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.12); }
+        .pillWait { border-color: rgba(147, 197, 253, 0.25); background: rgba(147, 197, 253, 0.08); }
+        .afterPay { margin-top: 12px; }
+        .btnRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .linkTools { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
         @media (max-width: 900px) {
-          .split {
-            grid-template-columns: 1fr;
-          }
-          .qr {
-            width: 240px;
-            height: 240px;
-          }
-          .row {
-            grid-template-columns: 1fr;
-          }
-          .btnPrimary {
-            width: 100%;
-          }
-          .btnRow {
-            grid-template-columns: 1fr;
-          }
+          .split { grid-template-columns: 1fr; }
+          .qr { width: 240px; height: 240px; }
+          .row { grid-template-columns: 1fr; }
+          .btnPrimary { width: 100%; }
+          .btnRow { grid-template-columns: 1fr; }
         }
       `}</style>
     </main>
