@@ -11,6 +11,14 @@ type PixState = {
   };
 };
 
+type SavedAccess = {
+  token: string;
+  createdAt: string; // ISO
+  lastSeenAt?: string; // ISO
+};
+
+const LS_KEY = "pixwa_accesses_v1";
+
 function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
 }
@@ -20,6 +28,34 @@ function normalizeBR(raw: string) {
   if (!digits) return "";
   if (digits.startsWith("55")) return digits;
   return "55" + digits;
+}
+
+function loadAccesses(): SavedAccess[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
+  } catch {
+    return [];
+  }
+}
+
+function saveAccess(token: string) {
+  const now = new Date().toISOString();
+  const list = loadAccesses();
+
+  const existingIdx = list.findIndex((x) => x.token === token);
+  if (existingIdx >= 0) {
+    list[existingIdx] = { ...list[existingIdx], lastSeenAt: now };
+  } else {
+    list.unshift({ token, createdAt: now, lastSeenAt: now });
+  }
+
+  // limita pra não crescer infinito
+  const limited = list.slice(0, 50);
+
+  localStorage.setItem(LS_KEY, JSON.stringify(limited));
 }
 
 export default function ComprarPage() {
@@ -33,19 +69,20 @@ export default function ComprarPage() {
   const [paid, setPaid] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  // evita múltiplos redirects
-  const [redirecting, setRedirecting] = useState(false);
+  // evita usar window antes do client hidratar
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   const accessLink = useMemo(() => {
-    if (!pix?.token) return "";
-    // window só existe no client; está ok porque este componente é "use client"
-    return `${window.location.origin}/a/${pix.token}`;
-  }, [pix?.token]);
+    if (!pix?.token || !origin) return "";
+    return `${origin}/a/${pix.token}`;
+  }, [pix?.token, origin]);
 
   async function gerarPix() {
     setErr(null);
     setPaid(false);
-    setRedirecting(false);
     setPix(null);
 
     const normalized = normalizeBR(phone);
@@ -75,8 +112,7 @@ export default function ComprarPage() {
         mp_payment_id: data?.mp_payment_id || data?.payment_id || data?.id,
         pix: {
           qr_code: data?.pix?.qr_code ?? data?.qr_code,
-          qr_code_base64:
-            data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
+          qr_code_base64: data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
         },
       });
     } catch (e: any) {
@@ -104,48 +140,22 @@ export default function ComprarPage() {
     let timer: any = null;
 
     async function check() {
-      if (!pix?.token || paid || redirecting) return;
+      if (!pix?.token || paid) return;
       setChecking(true);
       try {
-        const r = await fetch(
-          `/api/check_purchase?token=${encodeURIComponent(pix.token)}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const r = await fetch(`/api/check_purchase?token=${encodeURIComponent(pix.token)}`, {
+          cache: "no-store",
+        });
         const data = await r.json().catch(() => ({}));
-
-        iif (r.ok && data?.status === "paid") {
-  setPaid(true);
-
-  // salva o link/token no aparelho do cliente (histórico interno)
-  try {
-    const item = {
-      token: pix.token,
-      link: `${window.location.origin}/a/${pix.token}`,
-      paid_at: new Date().toISOString(),
-    };
-
-    localStorage.setItem("last_purchase", JSON.stringify(item));
-
-    const listRaw = localStorage.getItem("purchases_list");
-    const list = listRaw ? JSON.parse(listRaw) : [];
-    const next = [item, ...list].slice(0, 5); // guarda os últimos 5
-    localStorage.setItem("purchases_list", JSON.stringify(next));
-  } catch {}
-
-  setRedirecting(true);
-  setTimeout(() => {
-    window.location.href = `${window.location.origin}/a/${pix.token}`;
-  }, 2000);
-}
-
+        if (r.ok && data?.status === "paid") {
+          setPaid(true);
+        }
       } finally {
         setChecking(false);
       }
     }
 
-    if (pix?.token && !paid && !redirecting) {
+    if (pix?.token && !paid) {
       check();
       timer = setInterval(check, 3000);
     }
@@ -153,7 +163,24 @@ export default function ComprarPage() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [pix?.token, paid, redirecting]);
+  }, [pix?.token, paid]);
+
+  // ✅ Quando pagar: salva automaticamente + redireciona
+  useEffect(() => {
+    if (!paid || !pix?.token) return;
+
+    // 1) salva no navegador (Meus acessos)
+    try {
+      saveAccess(pix.token);
+    } catch {}
+
+    // 2) redireciona com um pequeno delay pra você ver a confirmação
+    const t = setTimeout(() => {
+      window.location.href = `/a/${pix.token}`;
+    }, 1200);
+
+    return () => clearTimeout(t);
+  }, [paid, pix?.token]);
 
   return (
     <main className="wrap">
@@ -161,9 +188,16 @@ export default function ComprarPage() {
 
       <header className="top">
         <div className="brand">
-          <div className="title">Pagamento via Pix</div>
+          <div className="titleRow">
+            <div className="title">Pagamento via Pix</div>
+
+            <a className="miniLink" href="/meus-acessos">
+              Meus acessos
+            </a>
+          </div>
+
           <div className="sub">
-            Gere o QR Code e pague. Assim que confirmar, o acesso libera automaticamente.
+            Gere o QR Code e pague. Assim que confirmar, o acesso libera automaticamente e fica salvo em “Meus acessos”.
           </div>
         </div>
       </header>
@@ -180,11 +214,7 @@ export default function ComprarPage() {
             className="input"
           />
 
-          <button
-            onClick={gerarPix}
-            disabled={loading}
-            className="btn btnPrimary"
-          >
+          <button onClick={gerarPix} disabled={loading} className="btn btnPrimary">
             {loading ? "Gerando..." : "Gerar Pix"}
           </button>
         </div>
@@ -229,31 +259,31 @@ export default function ComprarPage() {
 
               <div className="statusBox">
                 <div className={`pill ${paid ? "pillOk" : "pillWait"}`}>
-                  {paid
-                    ? "✅ Pagamento aprovado"
-                    : checking
-                    ? "⏳ Verificando pagamento..."
-                    : "⏳ Aguardando pagamento"}
+                  {paid ? "✅ Pagamento aprovado" : checking ? "⏳ Verificando pagamento..." : "⏳ Aguardando pagamento"}
                 </div>
 
-                {/* Depois de pagar: mensagem + redirect + fallback manual */}
                 {paid && (
                   <div className="afterPay">
-                    <p className="muted small" style={{ marginTop: 10 }}>
-                      Redirecionando para seu conteúdo...
-                    </p>
+                    <div className="muted small">Salvando em “Meus acessos” e redirecionando…</div>
 
-                    {/* fallback manual, caso algo falhe */}
-                    <div className="linkRow" style={{ marginTop: 8 }}>
-                      <a className="link" href={accessLink} target="_blank" rel="noreferrer">
+                    <div className="btnRow">
+                      <a className="btn btnPrimary" href={`/a/${pix.token}`}>
                         Abrir manualmente
                       </a>
-                      <button className="btn" onClick={copiarLink}>
-                        Copiar link
-                      </button>
+                      <a className="btn" href="/meus-acessos">
+                        Meus acessos
+                      </a>
                     </div>
 
-                    <div className="muted small">Token: {pix.token}</div>
+                    {/* opcional: ainda permite copiar */}
+                    {accessLink && (
+                      <div className="linkTools">
+                        <button className="btn" onClick={copiarLink}>
+                          Copiar link
+                        </button>
+                        <div className="muted small">Token: {pix.token}</div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -304,10 +334,28 @@ export default function ComprarPage() {
           gap: 6px;
         }
 
+        .titleRow {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
         .title {
           font-weight: 800;
           font-size: 22px;
           letter-spacing: 0.2px;
+        }
+
+        .miniLink {
+          font-size: 13px;
+          color: #93c5fd;
+          text-decoration: none;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          padding: 8px 10px;
+          border-radius: 999px;
+          white-space: nowrap;
         }
 
         .sub {
@@ -373,6 +421,10 @@ export default function ComprarPage() {
           cursor: pointer;
           font-size: 14px;
           white-space: nowrap;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .btnPrimary {
@@ -461,24 +513,20 @@ export default function ComprarPage() {
           margin-top: 12px;
         }
 
-        .linkRow {
+        .btnRow {
           display: grid;
-          grid-template-columns: 1fr auto;
+          grid-template-columns: 1fr 1fr;
           gap: 10px;
-          align-items: center;
+          margin-top: 10px;
         }
 
-        .link {
-          color: #93c5fd;
-          text-decoration: none;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.03);
-          padding: 10px 12px;
-          border-radius: 12px;
-          display: block;
+        .linkTools {
+          margin-top: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
         }
 
         @media (max-width: 900px) {
@@ -494,6 +542,9 @@ export default function ComprarPage() {
           }
           .btnPrimary {
             width: 100%;
+          }
+          .btnRow {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
