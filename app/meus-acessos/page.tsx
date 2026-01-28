@@ -26,10 +26,18 @@ function readCookie(name: string) {
   }
 }
 
-function loadList(): SavedAccess[] {
+function safeParseJSON(raw: string | null) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadListSafe(): SavedAccess[] {
   try {
     const raw = localStorage.getItem(LS_LIST_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
+    const arr = safeParseJSON(raw);
     if (!Array.isArray(arr)) return [];
     return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
   } catch {
@@ -37,13 +45,13 @@ function loadList(): SavedAccess[] {
   }
 }
 
-function saveList(list: SavedAccess[]) {
+function saveListSafe(list: SavedAccess[]) {
   try {
     localStorage.setItem(LS_LIST_KEY, JSON.stringify(list.slice(0, 50)));
   } catch {}
 }
 
-function normalizeToken(t: string) {
+function normalizeToken(t: any) {
   return String(t || "").trim();
 }
 
@@ -53,39 +61,59 @@ function ensureTokenInList(list: SavedAccess[], token: string) {
 
   const now = new Date().toISOString();
   const idx = list.findIndex((x) => x.token === t);
-
   if (idx >= 0) {
     const next = [...list];
     next[idx] = { ...next[idx], lastSeenAt: next[idx].lastSeenAt || now };
     return next;
   }
-
   return [{ token: t, createdAt: now, lastSeenAt: now }, ...list].slice(0, 50);
 }
 
 export default function MeusAcessosPage() {
+  const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<SavedAccess[]>([]);
   const [origin, setOrigin] = useState("");
+  const [debug, setDebug] = useState<{ listCount: number; lastLS: string; lastCK: string; finalCount: number }>({
+    listCount: 0,
+    lastLS: "",
+    lastCK: "",
+    finalCount: 0,
+  });
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    setMounted(true);
 
-    // 1) carrega lista
-    let list = loadList();
-
-    // 2) fallback: tenta puxar "último token" do localStorage/cookie e garantir na lista
-    let last = "";
+    // Só roda no client
     try {
-      last = normalizeToken(localStorage.getItem(LS_LAST_KEY) || "");
+      setOrigin(window.location.origin);
     } catch {}
-    if (!last) last = normalizeToken(readCookie(CK_LAST_KEY));
 
+    let list = loadListSafe();
+    const listCount = list.length;
+
+    let lastLS = "";
+    try {
+      lastLS = normalizeToken(localStorage.getItem(LS_LAST_KEY));
+    } catch {}
+
+    let lastCK = "";
+    try {
+      lastCK = normalizeToken(readCookie(CK_LAST_KEY));
+    } catch {}
+
+    const last = lastLS || lastCK;
     if (last) {
       list = ensureTokenInList(list, last);
-      saveList(list);
+      saveListSafe(list);
     }
 
     setItems(list);
+    setDebug({
+      listCount,
+      lastLS,
+      lastCK,
+      finalCount: list.length,
+    });
   }, []);
 
   const sorted = useMemo(() => {
@@ -96,14 +124,14 @@ export default function MeusAcessosPage() {
     const now = new Date().toISOString();
     const next = items.map((x) => (x.token === token ? { ...x, lastSeenAt: now } : x));
     setItems(next);
-    saveList(next);
+    saveListSafe(next);
     window.location.assign(`/a/${token}`);
   }
 
   function removeToken(token: string) {
     const next = items.filter((x) => x.token !== token);
     setItems(next);
-    saveList(next);
+    saveListSafe(next);
   }
 
   function clearAll() {
@@ -132,13 +160,22 @@ export default function MeusAcessosPage() {
       </header>
 
       <section className="card">
-        {sorted.length === 0 ? (
+        {!mounted ? (
+          <div className="empty">
+            <div className="h2">Carregando…</div>
+            <div className="sub">Inicializando “Meus acessos”.</div>
+          </div>
+        ) : sorted.length === 0 ? (
           <div className="empty">
             <div className="h2">Nenhum acesso salvo ainda</div>
-            <div className="sub">
-              Após o pagamento, o token é salvo automaticamente aqui.
-              <br />
-              Se você estiver em modo anônimo/privado, o navegador pode não guardar.
+            <div className="sub">Após o pagamento, o token é salvo automaticamente aqui.</div>
+
+            <div className="debug">
+              <div><strong>DEBUG</strong></div>
+              <div>listCount: {debug.listCount}</div>
+              <div>lastLS: {debug.lastLS || "(vazio)"}</div>
+              <div>lastCK: {debug.lastCK || "(vazio)"}</div>
+              <div>finalCount: {debug.finalCount}</div>
             </div>
           </div>
         ) : (
@@ -148,6 +185,14 @@ export default function MeusAcessosPage() {
               <button className="btn danger" onClick={clearAll}>
                 Limpar tudo
               </button>
+            </div>
+
+            <div className="debug" style={{ marginBottom: 12 }}>
+              <div><strong>DEBUG</strong></div>
+              <div>listCount: {debug.listCount}</div>
+              <div>lastLS: {debug.lastLS || "(vazio)"}</div>
+              <div>lastCK: {debug.lastCK || "(vazio)"}</div>
+              <div>finalCount: {debug.finalCount}</div>
             </div>
 
             <div className="list">
@@ -190,14 +235,12 @@ export default function MeusAcessosPage() {
           color: #e5e7eb;
           background: #070b12;
         }
-
         .wrap {
           max-width: 980px;
           margin: 0 auto;
           padding: 18px 16px 80px;
           position: relative;
         }
-
         .bg {
           position: fixed;
           inset: 0;
@@ -207,7 +250,6 @@ export default function MeusAcessosPage() {
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
         }
-
         .top {
           position: sticky;
           top: 0;
@@ -218,27 +260,23 @@ export default function MeusAcessosPage() {
           padding: 14px 0;
           margin-bottom: 18px;
         }
-
         .titleRow {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
         }
-
         .title {
           font-weight: 800;
           font-size: 22px;
           letter-spacing: 0.2px;
         }
-
         .sub {
           color: #a1a1aa;
           font-size: 14px;
           line-height: 1.5;
           margin-top: 6px;
         }
-
         .card {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 16px;
@@ -247,16 +285,13 @@ export default function MeusAcessosPage() {
           padding: 18px 16px;
           margin-bottom: 18px;
         }
-
         .h2 {
           font-weight: 700;
           font-size: 18px;
         }
-
         .empty {
           padding: 18px 4px;
         }
-
         .rowTop {
           display: flex;
           align-items: center;
@@ -264,12 +299,10 @@ export default function MeusAcessosPage() {
           gap: 12px;
           margin-bottom: 12px;
         }
-
         .list {
           display: grid;
           gap: 10px;
         }
-
         .item {
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.03);
@@ -279,27 +312,23 @@ export default function MeusAcessosPage() {
           grid-template-columns: 1fr auto;
           gap: 12px;
         }
-
         .token {
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
           font-size: 13px;
           color: #e5e7eb;
           word-break: break-all;
         }
-
         .meta {
           margin-top: 6px;
           color: #a1a1aa;
           font-size: 12px;
         }
-
         .link {
           margin-top: 8px;
           color: #93c5fd;
           font-size: 12px;
           word-break: break-all;
         }
-
         .actions {
           display: flex;
           flex-direction: column;
@@ -307,7 +336,6 @@ export default function MeusAcessosPage() {
           min-width: 160px;
           justify-content: center;
         }
-
         .btn {
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
@@ -322,17 +350,24 @@ export default function MeusAcessosPage() {
           align-items: center;
           justify-content: center;
         }
-
         .primary {
           background: rgba(147, 197, 253, 0.16);
           border-color: rgba(147, 197, 253, 0.22);
         }
-
         .danger {
           border-color: rgba(248, 113, 113, 0.25);
           background: rgba(248, 113, 113, 0.12);
         }
-
+        .debug {
+          margin-top: 14px;
+          font-size: 12px;
+          color: #a1a1aa;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.03);
+          padding: 10px 12px;
+          border-radius: 12px;
+          word-break: break-all;
+        }
         @media (max-width: 900px) {
           .item {
             grid-template-columns: 1fr;
