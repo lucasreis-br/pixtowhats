@@ -17,7 +17,9 @@ type SavedAccess = {
   lastSeenAt?: string; // ISO
 };
 
-const LS_KEY = "pixwa_accesses_v1";
+const LS_LIST_KEY = "pixwa_accesses_v1";
+const LS_LAST_KEY = "pixwa_last_token_v1";
+const CK_LAST_KEY = "pixwa_last_token_v1";
 
 function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
@@ -30,9 +32,9 @@ function normalizeBR(raw: string) {
   return "55" + digits;
 }
 
-function loadAccesses(): SavedAccess[] {
+function loadAccessesSafe(): SavedAccess[] {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(LS_LIST_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(arr)) return [];
     return arr.filter((x) => x && typeof x.token === "string" && typeof x.createdAt === "string");
@@ -41,21 +43,34 @@ function loadAccesses(): SavedAccess[] {
   }
 }
 
-function saveAccess(token: string) {
+function writeCookie(name: string, value: string, days = 365) {
+  try {
+    const maxAge = days * 24 * 60 * 60;
+    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+  } catch {}
+}
+
+function saveAccessEverywhere(token: string) {
   const now = new Date().toISOString();
-  const list = loadAccesses();
 
-  const existingIdx = list.findIndex((x) => x.token === token);
-  if (existingIdx >= 0) {
-    list[existingIdx] = { ...list[existingIdx], lastSeenAt: now };
-  } else {
-    list.unshift({ token, createdAt: now, lastSeenAt: now });
-  }
+  // 1) salva lista
+  try {
+    const list = loadAccessesSafe();
+    const idx = list.findIndex((x) => x.token === token);
 
-  // limita pra não crescer infinito
-  const limited = list.slice(0, 50);
+    if (idx >= 0) list[idx] = { ...list[idx], lastSeenAt: now };
+    else list.unshift({ token, createdAt: now, lastSeenAt: now });
 
-  localStorage.setItem(LS_KEY, JSON.stringify(limited));
+    localStorage.setItem(LS_LIST_KEY, JSON.stringify(list.slice(0, 50)));
+  } catch {}
+
+  // 2) salva "último token"
+  try {
+    localStorage.setItem(LS_LAST_KEY, token);
+  } catch {}
+
+  // 3) salva cookie (fallback)
+  writeCookie(CK_LAST_KEY, token, 365);
 }
 
 export default function ComprarPage() {
@@ -65,11 +80,9 @@ export default function ComprarPage() {
 
   const [pix, setPix] = useState<PixState | null>(null);
 
-  // status do pagamento (polling)
   const [paid, setPaid] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  // evita usar window antes do client hidratar
   const [origin, setOrigin] = useState("");
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -147,9 +160,7 @@ export default function ComprarPage() {
           cache: "no-store",
         });
         const data = await r.json().catch(() => ({}));
-        if (r.ok && data?.status === "paid") {
-          setPaid(true);
-        }
+        if (r.ok && data?.status === "paid") setPaid(true);
       } finally {
         setChecking(false);
       }
@@ -160,26 +171,30 @@ export default function ComprarPage() {
       timer = setInterval(check, 3000);
     }
 
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => timer && clearInterval(timer);
   }, [pix?.token, paid]);
 
-  // ✅ Quando pagar: salva automaticamente + redireciona
+  // ✅ Quando pagar: salva de forma robusta + redireciona
   useEffect(() => {
     if (!paid || !pix?.token) return;
 
-    // 1) salva no navegador (Meus acessos)
-    try {
-      saveAccess(pix.token);
-    } catch {}
+    // 1) salva imediatamente
+    saveAccessEverywhere(pix.token);
 
-    // 2) redireciona com um pequeno delay pra você ver a confirmação
-    const t = setTimeout(() => {
-      window.location.href = `/a/${pix.token}`;
-    }, 1200);
+    // 2) garante que o browser "assentou" antes do redirect
+    const go = () => {
+      // salva de novo (redundância)
+      saveAccessEverywhere(pix.token);
 
-    return () => clearTimeout(t);
+      // pequeno delay só pra dar tempo do usuário ver o ✅
+      setTimeout(() => {
+        window.location.assign(`/a/${pix.token}`);
+      }, 700);
+    };
+
+    // requestAnimationFrame ajuda a evitar corrida em alguns navegadores
+    const raf = requestAnimationFrame(go);
+    return () => cancelAnimationFrame(raf);
   }, [paid, pix?.token]);
 
   return (
@@ -190,14 +205,13 @@ export default function ComprarPage() {
         <div className="brand">
           <div className="titleRow">
             <div className="title">Pagamento via Pix</div>
-
             <a className="miniLink" href="/meus-acessos">
               Meus acessos
             </a>
           </div>
 
           <div className="sub">
-            Gere o QR Code e pague. Assim que confirmar, o acesso libera automaticamente e fica salvo em “Meus acessos”.
+            Gere o QR Code e pague. Ao confirmar, o acesso libera automaticamente e fica salvo em “Meus acessos”.
           </div>
         </div>
       </header>
@@ -264,7 +278,7 @@ export default function ComprarPage() {
 
                 {paid && (
                   <div className="afterPay">
-                    <div className="muted small">Salvando em “Meus acessos” e redirecionando…</div>
+                    <div className="muted small">Salvando e redirecionando…</div>
 
                     <div className="btnRow">
                       <a className="btn btnPrimary" href={`/a/${pix.token}`}>
@@ -275,7 +289,6 @@ export default function ComprarPage() {
                       </a>
                     </div>
 
-                    {/* opcional: ainda permite copiar */}
                     {accessLink && (
                       <div className="linkTools">
                         <button className="btn" onClick={copiarLink}>
