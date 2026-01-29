@@ -107,7 +107,6 @@ export default function ComprarPage() {
     alert("Link copiado.");
   }
 
-  // Polling a cada 3s
   useEffect(() => {
     let timer: any = null;
 
@@ -115,10 +114,9 @@ export default function ComprarPage() {
       if (!pix?.token || paid) return;
       setChecking(true);
       try {
-        const r = await fetch(
-          `/api/check_purchase?token=${encodeURIComponent(pix.token)}`,
-          { cache: "no-store" }
-        );
+        const r = await fetch(`/api/check_purchase?token=${encodeURIComponent(pix.token)}`, {
+          cache: "no-store",
+        });
         const data = await r.json().catch(() => ({}));
         if (r.ok && data?.status === "paid") setPaid(true);
       } finally {
@@ -134,7 +132,6 @@ export default function ComprarPage() {
     return () => timer && clearInterval(timer);
   }, [pix?.token, paid]);
 
-  // Ao pagar: redireciona
   useEffect(() => {
     if (!paid || !pix?.token) return;
     const t = setTimeout(() => {
@@ -280,6 +277,7 @@ export default function ComprarPage() {
           position: fixed;
           inset: 0;
           pointer-events: none;
+          z-index: -1; /* ✅ ESSENCIAL: coloca o background atrás */
           background: radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
