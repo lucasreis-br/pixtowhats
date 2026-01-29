@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { hashPassword, normalizePhone, verifyPassword } from "@/app/lib/auth";
+import { hashPassword, normalizePhone, verifyPassword } from "../../../lib/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -90,7 +90,6 @@ export async function POST(req) {
       return json({ error: "server_misconfigured_base_url" }, 500);
     }
 
-    // 1) customer: cria se não existir; se existir, valida senha
     let customer = await supabaseGetCustomerByPhone(phone);
 
     if (!customer) {
@@ -104,7 +103,6 @@ export async function POST(req) {
 
     const token = crypto.randomUUID();
 
-    // 2) salvar compra pending no Supabase (vinculada ao customer)
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
       method: "POST",
       headers: {
@@ -130,7 +128,6 @@ export async function POST(req) {
     const siteOrigin = originFromUrl(BASE_URL) || BASE_URL;
     const notification_url = `${siteOrigin}/api/mp_webhook`;
 
-    // 3) criar pagamento Pix no Mercado Pago
     const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
       headers: {
@@ -156,7 +153,6 @@ export async function POST(req) {
 
     const mp_payment_id = String(mpData?.id || "");
 
-    // salva mp_payment_id
     if (mp_payment_id) {
       await fetch(
         `${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`,
