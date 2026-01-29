@@ -1,34 +1,22 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { hashPassword, normalizePhone, verifyPassword } from "@/app/lib/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-// Use um URL “base” sem /app?t=DEV. Ideal: PUBLIC_BASE_URL=https://pix-whatsapp-access-dscc.vercel.app
 const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.SITE_URL;
 const PRICE = Number(process.env.PRODUCT_PRICE_BRL || 97);
 
-function json(data, status = 200) {
+function json(data: any, status = 200) {
   return new NextResponse(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json" },
   });
 }
 
-function onlyDigits(v) {
-  return String(v || "").replace(/\D/g, "");
-}
-
-function normalizeBRPhone(raw) {
-  // retorna no formato 55DDDNUMERO (sem +)
-  const d = onlyDigits(raw);
-  if (!d) return "";
-  if (d.startsWith("55")) return d;
-  return "55" + d;
-}
-
-function originFromUrl(u) {
+function originFromUrl(u: string) {
   try {
     const url = new URL(u);
     return url.origin;
@@ -37,13 +25,57 @@ function originFromUrl(u) {
   }
 }
 
-export async function POST(req) {
+async function supabaseGetCustomerByPhone(phone: string) {
+  const url =
+    `${SUPABASE_URL}/rest/v1/customers` +
+    `?phone=eq.${encodeURIComponent(phone)}` +
+    `&select=id,phone,password_hash` +
+    `&limit=1`;
+
+  const r = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY!,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => []);
+  return rows?.[0] || null;
+}
+
+async function supabaseCreateCustomer(phone: string, password_hash: string) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/customers`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY!,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify([{ phone, password_hash }]),
+  });
+
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`supabase_create_customer_failed: ${t}`);
+  }
+
+  const rows = await r.json().catch(() => []);
+  return rows?.[0] || null;
+}
+
+export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const phone = normalizeBRPhone(body?.phone);
+
+    const phone = normalizePhone(body?.phone);
+    const password = String(body?.password || "");
 
     if (!phone) return json({ error: "phone_required" }, 400);
     if (phone.length < 12) return json({ error: "phone_invalid" }, 400);
+    if (!password || password.length < 6) return json({ error: "password_invalid" }, 400);
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error("Missing Supabase env vars");
@@ -58,9 +90,21 @@ export async function POST(req) {
       return json({ error: "server_misconfigured_base_url" }, 500);
     }
 
+    // 1) customer: cria se não existir; se existir, valida senha
+    let customer = await supabaseGetCustomerByPhone(phone);
+
+    if (!customer) {
+      const password_hash = hashPassword(password);
+      customer = await supabaseCreateCustomer(phone, password_hash);
+      if (!customer?.id) return json({ error: "customer_create_failed" }, 500);
+    } else {
+      const ok = verifyPassword(password, customer.password_hash);
+      if (!ok) return json({ error: "invalid_login" }, 401);
+    }
+
     const token = crypto.randomUUID();
 
-    // 1) salvar compra pending no Supabase
+    // 2) salvar compra pending no Supabase (vinculada ao customer)
     const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
       method: "POST",
       headers: {
@@ -73,6 +117,7 @@ export async function POST(req) {
         token,
         phone,
         status: "pending",
+        customer_id: customer.id,
       }),
     });
 
@@ -82,21 +127,10 @@ export async function POST(req) {
       return json({ error: "supabase_insert_failed" }, 500);
     }
 
-    // Link que o cliente vai receber (sem Meta): ele mesmo abre o WhatsApp clicando
     const siteOrigin = originFromUrl(BASE_URL) || BASE_URL;
-    const accessLink = `${siteOrigin}/a/${token}`;
+    const notification_url = `${siteOrigin}/api/mp_webhook`;
 
-    const waText =
-      `✅ Pagamento aprovado!\n\n` +
-      `Acesse seu conteúdo:\n${accessLink}\n\n` +
-      `Token: ${token}`;
-
-    const whatsapp_link = `https://wa.me/${phone}?text=${encodeURIComponent(waText)}`;
-
-    // 2) criar pagamento Pix no Mercado Pago
-    const notificationOrigin = siteOrigin; // precisa ser público, sem query
-    const notification_url = `${notificationOrigin}/api/mp_webhook`;
-
+    // 3) criar pagamento Pix no Mercado Pago
     const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
       headers: {
@@ -120,23 +154,36 @@ export async function POST(req) {
       return json({ error: "mp_create_failed", mp: mpData }, 500);
     }
 
+    const mp_payment_id = String(mpData?.id || "");
+
+    // salva mp_payment_id (opcional, mas útil)
+    if (mp_payment_id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`, {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ mp_payment_id }),
+      }).catch(() => {});
+    }
+
     const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
-    const qr_code_base64 =
-      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
+    const qr_code_base64 = mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
 
     return json({
       token,
-      mp_payment_id: String(mpData?.id || ""),
-      whatsapp_link,
-      access_link: accessLink,
+      mp_payment_id,
+      access_link: `${siteOrigin}/a/${token}`,
       pix: {
         qr_code,
         qr_code_base64,
-        // compat com seu front antigo:
         qr_base64: qr_code_base64,
       },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("CREATE PURCHASE ERROR:", err);
     return json({ error: "server_error" }, 500);
   }
