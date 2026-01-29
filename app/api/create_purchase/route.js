@@ -9,14 +9,14 @@ const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.SITE_URL;
 const PRICE = Number(process.env.PRODUCT_PRICE_BRL || 97);
 
-function json(data: any, status = 200) {
+function json(data, status = 200) {
   return new NextResponse(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json" },
   });
 }
 
-function originFromUrl(u: string) {
+function originFromUrl(u) {
   try {
     const url = new URL(u);
     return url.origin;
@@ -25,7 +25,7 @@ function originFromUrl(u: string) {
   }
 }
 
-async function supabaseGetCustomerByPhone(phone: string) {
+async function supabaseGetCustomerByPhone(phone) {
   const url =
     `${SUPABASE_URL}/rest/v1/customers` +
     `?phone=eq.${encodeURIComponent(phone)}` +
@@ -34,7 +34,7 @@ async function supabaseGetCustomerByPhone(phone: string) {
 
   const r = await fetch(url, {
     headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY!,
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
       Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
     },
     cache: "no-store",
@@ -45,11 +45,11 @@ async function supabaseGetCustomerByPhone(phone: string) {
   return rows?.[0] || null;
 }
 
-async function supabaseCreateCustomer(phone: string, password_hash: string) {
+async function supabaseCreateCustomer(phone, password_hash) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/customers`, {
     method: "POST",
     headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY!,
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
       Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
       Prefer: "return=representation",
@@ -66,7 +66,7 @@ async function supabaseCreateCustomer(phone: string, password_hash: string) {
   return rows?.[0] || null;
 }
 
-export async function POST(req: Request) {
+export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
 
@@ -156,22 +156,26 @@ export async function POST(req: Request) {
 
     const mp_payment_id = String(mpData?.id || "");
 
-    // salva mp_payment_id (opcional, mas útil)
+    // salva mp_payment_id
     if (mp_payment_id) {
-      await fetch(`${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`, {
-        method: "PATCH",
-        headers: {
-          apikey: SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ mp_payment_id }),
-      }).catch(() => {});
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ mp_payment_id }),
+        }
+      ).catch(() => {});
     }
 
     const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
-    const qr_code_base64 = mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
+    const qr_code_base64 =
+      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
 
     return json({
       token,
@@ -183,7 +187,7 @@ export async function POST(req: Request) {
         qr_base64: qr_code_base64,
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("CREATE PURCHASE ERROR:", err);
     return json({ error: "server_error" }, 500);
   }
