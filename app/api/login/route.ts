@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizePhone, setSession, verifyPassword } from "@/app/lib/auth";
+import { normalizePhone, setSession, verifyPassword } from "../../lib/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
