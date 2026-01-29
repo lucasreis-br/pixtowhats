@@ -126,6 +126,7 @@ export default function LoginPage() {
           position: fixed;
           inset: 0;
           pointer-events: none;
+          z-index: -1; /* ✅ ESSENCIAL */
           background: radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
