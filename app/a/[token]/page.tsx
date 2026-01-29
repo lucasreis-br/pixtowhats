@@ -1,8 +1,6 @@
-// app/a/[token]/page.tsx
 import fs from "fs";
 import path from "path";
 import { notFound } from "next/navigation";
-import SaveAccessClient from "./SaveAccessClient";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,11 +27,7 @@ async function isTokenPaid(token: string) {
   return rows?.[0]?.status === "paid";
 }
 
-export default async function AccessPage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default async function AccessPage({ params }: { params: { token: string } }) {
   const token = String(params?.token || "").trim();
   if (!token) notFound();
 
@@ -52,10 +46,6 @@ export default async function AccessPage({
       </head>
 
       <body style={{ margin: 0 }}>
-        {/* ✅ salva o token no localStorage sempre que alguém abrir /a/<token> */}
-        <SaveAccessClient token={token} />
-
-        {/* seu ebook */}
         <div dangerouslySetInnerHTML={{ __html: html }} />
       </body>
     </html>
