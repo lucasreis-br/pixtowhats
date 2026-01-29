@@ -40,13 +40,6 @@ function decodeB64UrlToString(s: string) {
   return Buffer.from(base64, "base64").toString("utf8");
 }
 
-export type SessionPayload = {
-  customer_id: number;
-  phone: string;
-  exp: number;
-  iat: number;
-};
-
 export function setSession(payload: { customer_id: number; phone: string }) {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 60 * 60 * 24 * 30; // 30 dias
@@ -58,7 +51,7 @@ export function setSession(payload: { customer_id: number; phone: string }) {
   const p2 = b64urlJson(body);
   const data = `${p1}.${p2}`;
   const sig = signHS256(data, getSecret());
-  const token = `${data}.${sig}`;
+  const token = `${data}.${p2}.${sig}`.replace(`.${p2}.`, `.${p2}.`); // mantém formato p1.p2.sig
 
   cookies().set(COOKIE_NAME, token, {
     httpOnly: true,
@@ -92,7 +85,7 @@ export function readSession(): { customer_id: number; phone: string } | null {
   if (sig !== expected) return null;
 
   const payloadStr = decodeB64UrlToString(p2);
-  const payload = safeJsonParse(payloadStr) as SessionPayload | null;
+  const payload = safeJsonParse(payloadStr);
   if (!payload) return null;
 
   const now = Math.floor(Date.now() / 1000);
