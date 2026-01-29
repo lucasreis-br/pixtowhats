@@ -14,7 +14,6 @@ type PixState = {
 function onlyDigits(v: any) {
   return String(v || "").replace(/\D/g, "");
 }
-
 function normalizeBR(raw: string) {
   const digits = onlyDigits(raw);
   if (!digits) return "";
@@ -71,7 +70,11 @@ export default function ComprarPage() {
       const data = await r.json().catch(() => ({}));
 
       if (!r.ok) {
-        setErr(data?.error || "Erro ao gerar Pix.");
+        setErr(
+          data?.error === "invalid_login"
+            ? "Esse WhatsApp já tem conta. Use a senha correta ou entre em /login."
+            : data?.error || "Erro ao gerar Pix."
+        );
         return;
       }
 
@@ -104,7 +107,7 @@ export default function ComprarPage() {
     alert("Link copiado.");
   }
 
-  // Polling: a cada 3s pergunta se token já está paid
+  // Polling a cada 3s
   useEffect(() => {
     let timer: any = null;
 
@@ -128,19 +131,15 @@ export default function ComprarPage() {
       timer = setInterval(check, 3000);
     }
 
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => timer && clearInterval(timer);
   }, [pix?.token, paid]);
 
-  // Quando pagar: redireciona
+  // Ao pagar: redireciona
   useEffect(() => {
     if (!paid || !pix?.token) return;
-
     const t = setTimeout(() => {
       window.location.href = `/a/${pix.token}`;
     }, 900);
-
     return () => clearTimeout(t);
   }, [paid, pix?.token]);
 
@@ -152,13 +151,13 @@ export default function ComprarPage() {
         <div className="brand">
           <div className="titleRow">
             <div className="title">Pagamento via Pix</div>
-            <a className="miniLink" href="/meus-acessos">
-              Meus acessos
+            <a className="miniLink" href="/login">
+              Entrar
             </a>
           </div>
 
           <div className="sub">
-            Crie um login (WhatsApp + senha). Depois do pagamento, você consegue recuperar o acesso em qualquer dispositivo.
+            Digite WhatsApp + crie uma senha. Depois do pagamento, você recupera o acesso em qualquer dispositivo.
           </div>
         </div>
       </header>
@@ -184,11 +183,7 @@ export default function ComprarPage() {
         </div>
 
         <div className="row">
-          <button
-            onClick={gerarPix}
-            disabled={loading}
-            className="btn btnPrimary"
-          >
+          <button onClick={gerarPix} disabled={loading} className="btn btnPrimary">
             {loading ? "Gerando..." : "Gerar Pix"}
           </button>
           <a className="btn" href="/login">
@@ -236,11 +231,7 @@ export default function ComprarPage() {
 
               <div className="statusBox">
                 <div className={`pill ${paid ? "pillOk" : "pillWait"}`}>
-                  {paid
-                    ? "✅ Pagamento aprovado"
-                    : checking
-                    ? "⏳ Verificando pagamento..."
-                    : "⏳ Aguardando pagamento"}
+                  {paid ? "✅ Pagamento aprovado" : checking ? "⏳ Verificando pagamento..." : "⏳ Aguardando pagamento"}
                 </div>
 
                 {paid && (
@@ -251,8 +242,8 @@ export default function ComprarPage() {
                       <a className="btn btnPrimary" href={`/a/${pix.token}`}>
                         Abrir manualmente
                       </a>
-                      <a className="btn" href="/meus-acessos">
-                        Meus acessos
+                      <a className="btn" href="/login">
+                        Entrar depois
                       </a>
                     </div>
 
@@ -279,31 +270,62 @@ export default function ComprarPage() {
           color: #e5e7eb;
           background: #070b12;
         }
-        .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 80px; position: relative; }
+        .wrap {
+          max-width: 980px;
+          margin: 0 auto;
+          padding: 18px 16px 80px;
+          position: relative;
+        }
         .bg {
-          position: fixed; inset: 0; pointer-events: none;
-          background:
-            radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          background: radial-gradient(1200px 700px at 20% 10%, rgba(147, 197, 253, 0.12), transparent 55%),
             radial-gradient(900px 600px at 80% 20%, rgba(167, 243, 208, 0.1), transparent 55%),
             linear-gradient(180deg, #070b12 0%, #0b1220 100%);
         }
         .top {
-          position: sticky; top: 0; z-index: 10;
+          position: sticky;
+          top: 0;
+          z-index: 10;
           background: rgba(7, 11, 18, 0.72);
           backdrop-filter: saturate(180%) blur(10px);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 14px 0; margin-bottom: 18px;
+          padding: 14px 0;
+          margin-bottom: 18px;
         }
-        .brand { display: flex; flex-direction: column; gap: 6px; }
-        .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .title { font-weight: 800; font-size: 22px; letter-spacing: 0.2px; }
+        .brand {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .titleRow {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .title {
+          font-weight: 800;
+          font-size: 22px;
+          letter-spacing: 0.2px;
+        }
         .miniLink {
-          font-size: 13px; color: #93c5fd; text-decoration: none;
+          font-size: 13px;
+          color: #93c5fd;
+          text-decoration: none;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          padding: 8px 10px; border-radius: 999px; white-space: nowrap;
+          padding: 8px 10px;
+          border-radius: 999px;
+          white-space: nowrap;
         }
-        .sub { color: #a1a1aa; font-size: 14px; max-width: 70ch; line-height: 1.5; }
+        .sub {
+          color: #a1a1aa;
+          font-size: 14px;
+          max-width: 70ch;
+          line-height: 1.5;
+        }
         .card {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 16px;
@@ -312,16 +334,43 @@ export default function ComprarPage() {
           padding: 18px 16px;
           margin-bottom: 18px;
         }
-        .h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.2; }
-        .muted { margin: 0 0 14px; color: #a1a1aa; font-size: 14px; line-height: 1.5; }
-        .small { font-size: 12px; margin-top: 8px; }
-        .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
+        .h2 {
+          margin: 0 0 8px;
+          font-size: 18px;
+          line-height: 1.2;
+        }
+        .muted {
+          margin: 0 0 14px;
+          color: #a1a1aa;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+        .small {
+          font-size: 12px;
+          margin-top: 8px;
+        }
+        .row {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+        .row2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          align-items: center;
+        }
         .input {
-          width: 100%; padding: 12px 12px; border-radius: 12px;
+          width: 100%;
+          padding: 12px 12px;
+          border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          color: #e5e7eb; font-size: 16px; outline: none;
+          color: #e5e7eb;
+          font-size: 16px;
+          outline: none;
         }
         .btn {
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -337,45 +386,111 @@ export default function ComprarPage() {
           align-items: center;
           justify-content: center;
         }
-        .btnPrimary { background: rgba(147, 197, 253, 0.16); border-color: rgba(147, 197, 253, 0.22); }
+        .btnPrimary {
+          background: rgba(147, 197, 253, 0.16);
+          border-color: rgba(147, 197, 253, 0.22);
+        }
         .err {
-          margin-top: 12px; color: #fca5a5;
+          margin-top: 12px;
+          color: #fca5a5;
           background: rgba(220, 38, 38, 0.12);
           border: 1px solid rgba(220, 38, 38, 0.25);
-          padding: 10px 12px; border-radius: 12px; font-size: 14px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          font-size: 14px;
         }
-        .split { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; align-items: start; }
+        .split {
+          display: grid;
+          grid-template-columns: 1.1fr 0.9fr;
+          gap: 16px;
+          align-items: start;
+        }
         .qrBox {
-          margin-top: 10px; display: inline-block; border-radius: 14px; padding: 10px;
+          margin-top: 10px;
+          display: inline-block;
+          border-radius: 14px;
+          padding: 10px;
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.03);
         }
-        .qr { width: 280px; height: 280px; object-fit: contain; border-radius: 12px; background: #fff; }
-        .label { font-size: 13px; color: #a1a1aa; margin: 10px 0 6px; }
+        .qr {
+          width: 280px;
+          height: 280px;
+          object-fit: contain;
+          border-radius: 12px;
+          background: #fff;
+        }
+        .label {
+          font-size: 13px;
+          color: #a1a1aa;
+          margin: 10px 0 6px;
+        }
         .textarea {
-          width: 100%; min-height: 120px; padding: 12px; border-radius: 12px;
+          width: 100%;
+          min-height: 120px;
+          padding: 12px;
+          border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
-          color: #e5e7eb; resize: vertical; font-size: 13px;
+          color: #e5e7eb;
+          resize: vertical;
+          font-size: 13px;
         }
-        .statusBox { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+        .statusBox {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
         .pill {
-          display: inline-block; padding: 8px 10px; border-radius: 999px; font-size: 13px;
+          display: inline-block;
+          padding: 8px 10px;
+          border-radius: 999px;
+          font-size: 13px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
         }
-        .pillOk { border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.12); }
-        .pillWait { border-color: rgba(147, 197, 253, 0.25); background: rgba(147, 197, 253, 0.08); }
-        .afterPay { margin-top: 12px; }
-        .btnRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .linkTools { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-
+        .pillOk {
+          border-color: rgba(34, 197, 94, 0.35);
+          background: rgba(34, 197, 94, 0.12);
+        }
+        .pillWait {
+          border-color: rgba(147, 197, 253, 0.25);
+          background: rgba(147, 197, 253, 0.08);
+        }
+        .afterPay {
+          margin-top: 12px;
+        }
+        .btnRow {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        .linkTools {
+          margin-top: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
         @media (max-width: 900px) {
-          .split { grid-template-columns: 1fr; }
-          .qr { width: 240px; height: 240px; }
-          .row2 { grid-template-columns: 1fr; }
-          .btnPrimary { width: 100%; }
-          .btnRow { grid-template-columns: 1fr; }
+          .split {
+            grid-template-columns: 1fr;
+          }
+          .qr {
+            width: 240px;
+            height: 240px;
+          }
+          .row2 {
+            grid-template-columns: 1fr;
+          }
+          .btnPrimary {
+            width: 100%;
+          }
+          .btnRow {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </main>
