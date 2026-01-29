@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { saveAccess } from "@/app/lib/accessStore";
 
 type PixState = {
   token: string;
@@ -25,6 +24,8 @@ function normalizeBR(raw: string) {
 
 export default function ComprarPage() {
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -54,13 +55,17 @@ export default function ComprarPage() {
       setErr("Digite seu WhatsApp com DDD. Ex: 31 99999-9999");
       return;
     }
+    if (!password || password.length < 6) {
+      setErr("Crie uma senha com no mínimo 6 caracteres (serve para recuperar o acesso depois).");
+      return;
+    }
 
     setLoading(true);
     try {
       const r = await fetch("/api/create_purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalized }),
+        body: JSON.stringify({ phone: normalized, password }),
       });
 
       const data = await r.json().catch(() => ({}));
@@ -76,9 +81,7 @@ export default function ComprarPage() {
         pix: {
           qr_code: data?.pix?.qr_code ?? data?.qr_code,
           qr_code_base64:
-            data?.pix?.qr_code_base64 ??
-            data?.qr_code_base64 ??
-            data?.qr_base64,
+            data?.pix?.qr_code_base64 ?? data?.qr_code_base64 ?? data?.qr_base64,
         },
       });
     } catch (e: any) {
@@ -130,16 +133,10 @@ export default function ComprarPage() {
     };
   }, [pix?.token, paid]);
 
-  // ✅ Quando pagar: salva (best-effort) + redireciona
+  // Quando pagar: redireciona
   useEffect(() => {
     if (!paid || !pix?.token) return;
 
-    // best-effort: tenta salvar aqui
-    try {
-      saveAccess(pix.token);
-    } catch {}
-
-    // redireciona (e /a/<token> também salva de novo)
     const t = setTimeout(() => {
       window.location.href = `/a/${pix.token}`;
     }, 900);
@@ -161,22 +158,32 @@ export default function ComprarPage() {
           </div>
 
           <div className="sub">
-            Gere o QR Code e pague. Ao confirmar, o acesso libera automaticamente e fica salvo em “Meus acessos”.
+            Crie um login (WhatsApp + senha). Depois do pagamento, você consegue recuperar o acesso em qualquer dispositivo.
           </div>
         </div>
       </header>
 
       <section className="card">
-        <h2 className="h2">Seu WhatsApp</h2>
-        <p className="muted">Use com DDD. Ex: 31 99999-9999</p>
+        <h2 className="h2">Seus dados</h2>
+        <p className="muted">Use WhatsApp com DDD. Ex: 31 99999-9999</p>
 
-        <div className="row">
+        <div className="row2">
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="Digite seu WhatsApp"
             className="input"
           />
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Crie uma senha (mín. 6)"
+            type="password"
+            className="input"
+          />
+        </div>
+
+        <div className="row">
           <button
             onClick={gerarPix}
             disabled={loading}
@@ -184,6 +191,9 @@ export default function ComprarPage() {
           >
             {loading ? "Gerando..." : "Gerar Pix"}
           </button>
+          <a className="btn" href="/login">
+            Já tenho conta
+          </a>
         </div>
 
         {err && <div className="err">{err}</div>}
@@ -235,9 +245,7 @@ export default function ComprarPage() {
 
                 {paid && (
                   <div className="afterPay">
-                    <div className="muted small">
-                      Salvando em “Meus acessos” e redirecionando…
-                    </div>
+                    <div className="muted small">Redirecionando…</div>
 
                     <div className="btnRow">
                       <a className="btn btnPrimary" href={`/a/${pix.token}`}>
@@ -307,7 +315,8 @@ export default function ComprarPage() {
         .h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.2; }
         .muted { margin: 0 0 14px; color: #a1a1aa; font-size: 14px; line-height: 1.5; }
         .small { font-size: 12px; margin-top: 8px; }
-        .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+        .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
         .input {
           width: 100%; padding: 12px 12px; border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -364,7 +373,7 @@ export default function ComprarPage() {
         @media (max-width: 900px) {
           .split { grid-template-columns: 1fr; }
           .qr { width: 240px; height: 240px; }
-          .row { grid-template-columns: 1fr; }
+          .row2 { grid-template-columns: 1fr; }
           .btnPrimary { width: 100%; }
           .btnRow { grid-template-columns: 1fr; }
         }
