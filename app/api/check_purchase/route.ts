@@ -1,194 +1,55 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
-import { hashPassword, normalizePhone, verifyPassword } from "@/app/lib/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.SITE_URL;
-const PRICE = Number(process.env.PRODUCT_PRICE_BRL || 97);
-
-function json(data, status = 200) {
+function json(data: any, status = 200) {
   return new NextResponse(JSON.stringify(data), {
     status,
     headers: { "content-type": "application/json" },
   });
 }
 
-function originFromUrl(u) {
+export async function GET(req: Request) {
   try {
-    const url = new URL(u);
-    return url.origin;
-  } catch {
-    return "";
-  }
-}
-
-async function supabaseGetCustomerByPhone(phone) {
-  const url =
-    `${SUPABASE_URL}/rest/v1/customers` +
-    `?phone=eq.${encodeURIComponent(phone)}` +
-    `&select=id,phone,password_hash` +
-    `&limit=1`;
-
-  const r = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    cache: "no-store",
-  });
-
-  if (!r.ok) return null;
-  const rows = await r.json().catch(() => []);
-  return rows?.[0] || null;
-}
-
-async function supabaseCreateCustomer(phone, password_hash) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/customers`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify([{ phone, password_hash }]),
-  });
-
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`supabase_create_customer_failed: ${t}`);
-  }
-
-  const rows = await r.json().catch(() => []);
-  return rows?.[0] || null;
-}
-
-export async function POST(req) {
-  try {
-    const body = await req.json().catch(() => ({}));
-
-    const phone = normalizePhone(body?.phone);
-    const password = String(body?.password || "");
-
-    if (!phone) return json({ error: "phone_required" }, 400);
-    if (phone.length < 12) return json({ error: "phone_invalid" }, 400);
-    if (!password || password.length < 6) return json({ error: "password_invalid" }, 400);
-
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Supabase env vars");
-      return json({ error: "server_misconfigured_supabase" }, 500);
-    }
-    if (!MP_TOKEN) {
-      console.error("Missing Mercado Pago access token");
-      return json({ error: "server_misconfigured_mp" }, 500);
-    }
-    if (!BASE_URL) {
-      console.error("Missing PUBLIC_BASE_URL/SITE_URL env var");
-      return json({ error: "server_misconfigured_base_url" }, 500);
+      return json({ error: "server_misconfigured" }, 500);
     }
 
-    // 1) customer: cria se não existir; se existir, valida senha
-    let customer = await supabaseGetCustomerByPhone(phone);
+    const { searchParams } = new URL(req.url);
+    const token = String(searchParams.get("token") || "").trim();
+    if (!token) return json({ error: "missing_token" }, 400);
 
-    if (!customer) {
-      const password_hash = hashPassword(password);
-      customer = await supabaseCreateCustomer(phone, password_hash);
-      if (!customer?.id) return json({ error: "customer_create_failed" }, 500);
-    } else {
-      const ok = verifyPassword(password, customer.password_hash);
-      if (!ok) return json({ error: "invalid_login" }, 401);
-    }
+    const url =
+      `${SUPABASE_URL}/rest/v1/purchases` +
+      `?token=eq.${encodeURIComponent(token)}` +
+      `&select=status,delivered_at,mp_payment_id` +
+      `&limit=1`;
 
-    const token = crypto.randomUUID();
-
-    // 2) salvar compra pending no Supabase (vinculada ao customer)
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
-      method: "POST",
+    const r = await fetch(url, {
       headers: {
         apikey: SUPABASE_SERVICE_ROLE_KEY,
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
       },
-      body: JSON.stringify({
-        token,
-        phone,
-        status: "pending",
-        customer_id: customer.id,
-      }),
+      cache: "no-store",
     });
 
-    if (!insertRes.ok) {
-      const t = await insertRes.text();
-      console.error("SUPABASE INSERT ERROR:", t);
-      return json({ error: "supabase_insert_failed" }, 500);
+    if (!r.ok) {
+      const t = await r.text();
+      return json({ error: "supabase_error", details: t }, 500);
     }
 
-    const siteOrigin = originFromUrl(BASE_URL) || BASE_URL;
-    const notification_url = `${siteOrigin}/api/mp_webhook`;
+    const rows = await r.json().catch(() => []);
+    const row = rows?.[0];
 
-    // 3) criar pagamento Pix no Mercado Pago
-    const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${MP_TOKEN}`,
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": token,
-      },
-      body: JSON.stringify({
-        transaction_amount: PRICE,
-        description: "Acesso ao conteúdo",
-        payment_method_id: "pix",
-        payer: { email: "comprador@seusite.com" },
-        notification_url,
-        metadata: { token, phone },
-      }),
-    });
-
-    const mpData = await mpRes.json().catch(() => ({}));
-    if (!mpRes.ok) {
-      console.error("MP CREATE PAYMENT ERROR:", mpData);
-      return json({ error: "mp_create_failed", mp: mpData }, 500);
-    }
-
-    const mp_payment_id = String(mpData?.id || "");
-
-    // salva mp_payment_id
-    if (mp_payment_id) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`,
-        {
-          method: "PATCH",
-          headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({ mp_payment_id }),
-        }
-      ).catch(() => {});
-    }
-
-    const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
-    const qr_code_base64 =
-      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
+    if (!row) return json({ status: "not_found" }, 200);
 
     return json({
-      token,
-      mp_payment_id,
-      access_link: `${siteOrigin}/a/${token}`,
-      pix: {
-        qr_code,
-        qr_code_base64,
-        qr_base64: qr_code_base64,
-      },
+      status: row.status || "unknown",
+      delivered_at: row.delivered_at || null,
+      mp_payment_id: row.mp_payment_id || null,
     });
-  } catch (err) {
-    console.error("CREATE PURCHASE ERROR:", err);
-    return json({ error: "server_error" }, 500);
+  } catch (e: any) {
+    return json({ error: e?.message || "server_error" }, 500);
   }
 }
