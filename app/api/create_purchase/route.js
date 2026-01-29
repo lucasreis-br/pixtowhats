@@ -155,4 +155,24 @@ export async function POST(req) {
             apikey: SUPABASE_SERVICE_ROLE_KEY,
             Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             "Content-Type": "application/json",
-            Pr
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ mp_payment_id }),
+        }
+      ).catch(() => {});
+    }
+
+    const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
+    const qr_code_base64 =
+      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
+
+    return json({
+      token,
+      mp_payment_id,
+      access_link: `${siteOrigin}/a/${token}`,
+      pix: { qr_code, qr_code_base64, qr_base64: qr_code_base64 },
+    });
+  } catch (err) {
+    return json({ error: "server_error" }, 500);
+  }
+}
