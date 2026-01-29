@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { hashPassword, normalizePhone, verifyPassword } from "../../../lib/auth";
+import { hashPassword, normalizePhone, verifyPassword } from "../../lib/auth";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -78,15 +78,12 @@ export async function POST(req) {
     if (!password || password.length < 6) return json({ error: "password_invalid" }, 400);
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Supabase env vars");
       return json({ error: "server_misconfigured_supabase" }, 500);
     }
     if (!MP_TOKEN) {
-      console.error("Missing Mercado Pago access token");
       return json({ error: "server_misconfigured_mp" }, 500);
     }
     if (!BASE_URL) {
-      console.error("Missing PUBLIC_BASE_URL/SITE_URL env var");
       return json({ error: "server_misconfigured_base_url" }, 500);
     }
 
@@ -121,8 +118,7 @@ export async function POST(req) {
 
     if (!insertRes.ok) {
       const t = await insertRes.text();
-      console.error("SUPABASE INSERT ERROR:", t);
-      return json({ error: "supabase_insert_failed" }, 500);
+      return json({ error: "supabase_insert_failed", details: t }, 500);
     }
 
     const siteOrigin = originFromUrl(BASE_URL) || BASE_URL;
@@ -146,10 +142,7 @@ export async function POST(req) {
     });
 
     const mpData = await mpRes.json().catch(() => ({}));
-    if (!mpRes.ok) {
-      console.error("MP CREATE PAYMENT ERROR:", mpData);
-      return json({ error: "mp_create_failed", mp: mpData }, 500);
-    }
+    if (!mpRes.ok) return json({ error: "mp_create_failed", mp: mpData }, 500);
 
     const mp_payment_id = String(mpData?.id || "");
 
@@ -162,29 +155,4 @@ export async function POST(req) {
             apikey: SUPABASE_SERVICE_ROLE_KEY,
             Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
             "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({ mp_payment_id }),
-        }
-      ).catch(() => {});
-    }
-
-    const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
-    const qr_code_base64 =
-      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
-
-    return json({
-      token,
-      mp_payment_id,
-      access_link: `${siteOrigin}/a/${token}`,
-      pix: {
-        qr_code,
-        qr_code_base64,
-        qr_base64: qr_code_base64,
-      },
-    });
-  } catch (err) {
-    console.error("CREATE PURCHASE ERROR:", err);
-    return json({ error: "server_error" }, 500);
-  }
-}
+            Pr
