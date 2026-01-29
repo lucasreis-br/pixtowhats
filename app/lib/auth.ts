@@ -1,190 +1,119 @@
-import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { hashPassword, normalizePhone, verifyPassword } from "../../lib/auth";
+import { cookies } from "next/headers";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const MP_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
+const COOKIE_NAME = process.env.COOKIE_NAME || "session";
 
-const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.SITE_URL;
-const PRICE = Number(process.env.PRODUCT_PRICE_BRL || 97);
-
-function json(data, status = 200) {
-  return new NextResponse(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+function getSecret() {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error("JWT_SECRET missing");
+  return s;
 }
 
-function originFromUrl(u) {
+function b64url(input: Buffer | string) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  return buf
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function b64urlJson(obj: any) {
+  return b64url(Buffer.from(JSON.stringify(obj)));
+}
+
+function signHS256(data: string, secret: string) {
+  return b64url(crypto.createHmac("sha256", secret).update(data).digest());
+}
+
+function safeJsonParse(s: string) {
   try {
-    const url = new URL(u);
-    return url.origin;
+    return JSON.parse(s);
   } catch {
-    return "";
+    return null;
   }
 }
 
-async function supabaseGetCustomerByPhone(phone) {
-  const url =
-    `${SUPABASE_URL}/rest/v1/customers` +
-    `?phone=eq.${encodeURIComponent(phone)}` +
-    `&select=id,phone,password_hash` +
-    `&limit=1`;
+function decodeB64UrlToString(s: string) {
+  const pad = 4 - (s.length % 4 || 4);
+  const base64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(pad);
+  return Buffer.from(base64, "base64").toString("utf8");
+}
 
-  const r = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    cache: "no-store",
+export function setSession(payload: { customer_id: number; phone: string }) {
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + 60 * 60 * 24 * 30; // 30 dias
+
+  const header = { alg: "HS256", typ: "JWT" };
+  const body = { ...payload, iat: now, exp };
+
+  const p1 = b64urlJson(header);
+  const p2 = b64urlJson(body);
+  const data = `${p1}.${p2}`;
+  const sig = signHS256(data, getSecret());
+  const token = `${p1}.${p2}.${sig}`;
+
+  cookies().set(COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
   });
-
-  if (!r.ok) return null;
-  const rows = await r.json().catch(() => []);
-  return rows?.[0] || null;
 }
 
-async function supabaseCreateCustomer(phone, password_hash) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/customers`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify([{ phone, password_hash }]),
+export function clearSession() {
+  cookies().set(COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+    maxAge: 0,
   });
-
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`supabase_create_customer_failed: ${t}`);
-  }
-
-  const rows = await r.json().catch(() => []);
-  return rows?.[0] || null;
 }
 
-export async function POST(req) {
-  try {
-    const body = await req.json().catch(() => ({}));
+export function readSession(): { customer_id: number; phone: string } | null {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (!token) return null;
 
-    const phone = normalizePhone(body?.phone);
-    const password = String(body?.password || "");
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
 
-    if (!phone) return json({ error: "phone_required" }, 400);
-    if (phone.length < 12) return json({ error: "phone_invalid" }, 400);
-    if (!password || password.length < 6) return json({ error: "password_invalid" }, 400);
+  const [p1, p2, sig] = parts;
+  const data = `${p1}.${p2}`;
+  const expected = signHS256(data, getSecret());
+  if (sig !== expected) return null;
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Supabase env vars");
-      return json({ error: "server_misconfigured_supabase" }, 500);
-    }
-    if (!MP_TOKEN) {
-      console.error("Missing Mercado Pago access token");
-      return json({ error: "server_misconfigured_mp" }, 500);
-    }
-    if (!BASE_URL) {
-      console.error("Missing PUBLIC_BASE_URL/SITE_URL env var");
-      return json({ error: "server_misconfigured_base_url" }, 500);
-    }
+  const payloadStr = decodeB64UrlToString(p2);
+  const payload = safeJsonParse(payloadStr);
+  if (!payload) return null;
 
-    let customer = await supabaseGetCustomerByPhone(phone);
+  const now = Math.floor(Date.now() / 1000);
+  if (!payload.exp || payload.exp < now) return null;
 
-    if (!customer) {
-      const password_hash = hashPassword(password);
-      customer = await supabaseCreateCustomer(phone, password_hash);
-      if (!customer?.id) return json({ error: "customer_create_failed" }, 500);
-    } else {
-      const ok = verifyPassword(password, customer.password_hash);
-      if (!ok) return json({ error: "invalid_login" }, 401);
-    }
+  if (!payload.customer_id || !payload.phone) return null;
 
-    const token = crypto.randomUUID();
+  return { customer_id: Number(payload.customer_id), phone: String(payload.phone) };
+}
 
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        token,
-        phone,
-        status: "pending",
-        customer_id: customer.id,
-      }),
-    });
+export function normalizePhone(raw: any) {
+  return String(raw || "").replace(/\D/g, "");
+}
 
-    if (!insertRes.ok) {
-      const t = await insertRes.text();
-      console.error("SUPABASE INSERT ERROR:", t);
-      return json({ error: "supabase_insert_failed" }, 500);
-    }
+export function hashPassword(password: string) {
+  const salt = crypto.randomBytes(16);
+  const derived = crypto.scryptSync(password, salt, 32);
+  return `scrypt:${salt.toString("hex")}:${derived.toString("hex")}`;
+}
 
-    const siteOrigin = originFromUrl(BASE_URL) || BASE_URL;
-    const notification_url = `${siteOrigin}/api/mp_webhook`;
+export function verifyPassword(password: string, stored: string) {
+  const parts = String(stored || "").split(":");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
 
-    const mpRes = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${MP_TOKEN}`,
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": token,
-      },
-      body: JSON.stringify({
-        transaction_amount: PRICE,
-        description: "Acesso ao conteúdo",
-        payment_method_id: "pix",
-        payer: { email: "comprador@seusite.com" },
-        notification_url,
-        metadata: { token, phone },
-      }),
-    });
+  const salt = Buffer.from(parts[1], "hex");
+  const hash = Buffer.from(parts[2], "hex");
+  const derived = crypto.scryptSync(password, salt, 32);
 
-    const mpData = await mpRes.json().catch(() => ({}));
-    if (!mpRes.ok) {
-      console.error("MP CREATE PAYMENT ERROR:", mpData);
-      return json({ error: "mp_create_failed", mp: mpData }, 500);
-    }
-
-    const mp_payment_id = String(mpData?.id || "");
-
-    if (mp_payment_id) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/purchases?token=eq.${encodeURIComponent(token)}`,
-        {
-          method: "PATCH",
-          headers: {
-            apikey: SUPABASE_SERVICE_ROLE_KEY,
-            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({ mp_payment_id }),
-        }
-      ).catch(() => {});
-    }
-
-    const qr_code = mpData?.point_of_interaction?.transaction_data?.qr_code || "";
-    const qr_code_base64 =
-      mpData?.point_of_interaction?.transaction_data?.qr_code_base64 || "";
-
-    return json({
-      token,
-      mp_payment_id,
-      access_link: `${siteOrigin}/a/${token}`,
-      pix: {
-        qr_code,
-        qr_code_base64,
-        qr_base64: qr_code_base64,
-      },
-    });
-  } catch (err) {
-    console.error("CREATE PURCHASE ERROR:", err);
-    return json({ error: "server_error" }, 500);
-  }
+  if (hash.length !== derived.length) return false;
+  return crypto.timingSafeEqual(hash, derived);
 }
