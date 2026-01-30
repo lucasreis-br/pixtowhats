@@ -1,4 +1,3 @@
-// app/login/page.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -10,30 +9,25 @@ type LoginResponse = {
   error?: string;
 };
 
-function digitsOnly(v: string) {
+function digits(v: string) {
   return (v || "").replace(/\D+/g, "");
 }
 
-function normalizeBRWhatsapp(raw: string): { ok: boolean; localBR: string; e164: string } {
-  let p = digitsOnly(raw);
+function normalizeBRWhatsapp(input: string) {
+  let d = digits(input);
+  if (d.startsWith("55")) d = d.slice(2);
+  if (d.length === 10) d = d.slice(0, 2) + "9" + d.slice(2);
+  if (d.length !== 11) return null;
+  return { localBR: d, e164: "55" + d };
+}
 
-  if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
-    p = p.slice(2);
-  }
-
-  if (p.length === 10) {
-    const ddd = p.slice(0, 2);
-    const rest = p.slice(2);
-    const localBR = `${ddd}9${rest}`;
-    return { ok: true, localBR, e164: `55${localBR}` };
-  }
-
-  if (p.length === 11) {
-    const localBR = p;
-    return { ok: true, localBR, e164: `55${localBR}` };
-  }
-
-  return { ok: false, localBR: "", e164: "" };
+function humanizeError(err: string | null) {
+  if (!err) return null;
+  const e = String(err);
+  if (e === "phone_invalid") return "WhatsApp inválido. Use DDD + número (ex: 31 99999-9999).";
+  if (e === "invalid_login") return "WhatsApp ou senha incorretos.";
+  if (e === "server_error") return "Erro no servidor. Tente novamente em instantes.";
+  return e.replaceAll("_", " ");
 }
 
 export default function LoginPage() {
@@ -49,7 +43,7 @@ export default function LoginPage() {
 
   const canSubmit = useMemo(() => {
     const n = normalizeBRWhatsapp(phone);
-    return n.ok && password.length >= 6 && !loading;
+    return !!n && password.length >= 6 && !loading;
   }, [phone, password, loading]);
 
   async function onLogin(e: React.FormEvent) {
@@ -57,23 +51,21 @@ export default function LoginPage() {
     setError(null);
 
     const n = normalizeBRWhatsapp(phone);
-    if (!n.ok) return setError("Digite seu WhatsApp com DDD (Ex: 31 99999-9999).");
-    if (password.length < 6) return setError("Senha inválida.");
+    if (!n) return setError("phone_invalid");
+    if (password.length < 6) return setError("invalid_login");
 
     setLoading(true);
     try {
       const r = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // ✅ ENVIA 55 + DDD + número
         body: JSON.stringify({ phone: n.e164, password }),
       });
 
       const data = (await r.json().catch(() => ({}))) as LoginResponse;
 
       if (!r.ok || data?.error) {
-        setError(data?.error || "login_failed");
-        setLoading(false);
+        setError(data?.error || "invalid_login");
         return;
       }
 
@@ -84,6 +76,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  const prettyError = humanizeError(error);
 
   return (
     <main className="page">
@@ -99,8 +93,8 @@ export default function LoginPage() {
       <header className="hero">
         <h1>Entrar</h1>
         <p>
-          Entre com o mesmo WhatsApp e senha usados na compra. Depois disso, você
-          recupera o acesso automaticamente.
+          Entre com o mesmo WhatsApp e senha usados na compra. Depois disso, você recupera o acesso
+          automaticamente.
         </p>
       </header>
 
@@ -139,7 +133,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {error ? <div className="error">{error}</div> : null}
+            {prettyError ? <div className="error">{prettyError}</div> : null}
           </form>
         </div>
       </section>
@@ -161,20 +155,21 @@ export default function LoginPage() {
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
-          filter: saturate(1.02) contrast(1.02);
           transform: scale(1.02);
+          filter: saturate(1.05) contrast(1.03) brightness(1.02);
         }
 
         .vignette {
           position: absolute;
           inset: 0;
-          background: radial-gradient(
-              60% 55% at 50% 30%,
-              rgba(7, 11, 18, 0.1) 0%,
-              rgba(7, 11, 18, 0.55) 55%,
-              rgba(7, 11, 18, 0.88) 100%
-            ),
-            linear-gradient(180deg, rgba(7, 11, 18, 0.35), rgba(7, 11, 18, 0.7));
+          background:
+            radial-gradient(60% 55% at 50% 26%,
+              rgba(7, 11, 18, 0.05) 0%,
+              rgba(7, 11, 18, 0.42) 55%,
+              rgba(7, 11, 18, 0.72) 100%),
+            linear-gradient(180deg,
+              rgba(7, 11, 18, 0.22),
+              rgba(7, 11, 18, 0.55));
           pointer-events: none;
         }
 
@@ -191,9 +186,9 @@ export default function LoginPage() {
           padding: 8px 12px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.35);
+          background: rgba(10, 16, 28, 0.28);
           backdrop-filter: blur(10px);
-          color: #e5e7eb;
+          color: rgba(229, 231, 235, 0.95);
           text-decoration: none;
         }
         .pill:hover {
@@ -210,12 +205,12 @@ export default function LoginPage() {
         }
 
         .hero h1 {
-          margin: 10px 0 6px;
-          font-size: clamp(34px, 4.2vw, 56px);
+          margin: 12px 0 8px;
+          font-size: clamp(40px, 4.6vw, 64px);
           letter-spacing: -0.02em;
-          font-weight: 700;
+          font-weight: 800;
           color: rgba(229, 231, 235, 0.92);
-          text-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+          text-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
         }
 
         .hero p {
@@ -223,8 +218,8 @@ export default function LoginPage() {
           max-width: 760px;
           font-size: 14px;
           line-height: 1.45;
-          color: rgba(229, 231, 235, 0.65);
-          text-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+          color: rgba(229, 231, 235, 0.70);
+          text-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
         }
 
         .center {
@@ -236,26 +231,26 @@ export default function LoginPage() {
         }
 
         .card {
-          width: min(760px, 92vw);
+          width: min(920px, 92vw);
           border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(10, 16, 28, 0.42);
-          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(10, 16, 28, 0.34);
+          box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48);
           backdrop-filter: blur(18px);
-          padding: 18px;
+          padding: 20px;
         }
 
         .cardHead h2 {
           margin: 2px 0 6px;
           font-size: 20px;
-          font-weight: 700;
+          font-weight: 800;
           letter-spacing: -0.01em;
         }
 
         .cardHead span {
           display: block;
           font-size: 13px;
-          color: rgba(229, 231, 235, 0.62);
+          color: rgba(229, 231, 235, 0.70);
           margin-bottom: 14px;
         }
 
@@ -268,18 +263,27 @@ export default function LoginPage() {
         input {
           height: 46px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(15, 23, 42, 0.35);
-          color: rgba(229, 231, 235, 0.92);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(15, 23, 42, 0.46);
+          color: rgba(255, 255, 255, 0.92);
+          caret-color: rgba(255, 255, 255, 0.92);
           padding: 0 14px;
           outline: none;
         }
         input::placeholder {
-          color: rgba(229, 231, 235, 0.45);
+          color: rgba(229, 231, 235, 0.55);
         }
         input:focus {
-          border-color: rgba(147, 197, 253, 0.55);
+          border-color: rgba(147, 197, 253, 0.60);
           box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+        }
+
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          -webkit-text-fill-color: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.46) inset;
+          transition: background-color 9999s ease-in-out 0s;
         }
 
         .actions {
@@ -291,12 +295,13 @@ export default function LoginPage() {
 
         .btnPrimary {
           height: 42px;
+          min-width: 140px;
           padding: 0 16px;
           border-radius: 12px;
-          border: 1px solid rgba(59, 130, 246, 0.35);
-          background: rgba(59, 130, 246, 0.35);
-          color: rgba(229, 231, 235, 0.95);
-          font-weight: 600;
+          border: 1px solid rgba(59, 130, 246, 0.42);
+          background: rgba(59, 130, 246, 0.42);
+          color: rgba(255, 255, 255, 0.95);
+          font-weight: 700;
           cursor: pointer;
         }
         .btnPrimary:disabled {
@@ -308,14 +313,14 @@ export default function LoginPage() {
           height: 42px;
           padding: 0 16px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(10, 16, 28, 0.12);
           color: rgba(229, 231, 235, 0.92);
           text-decoration: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-weight: 600;
+          font-weight: 700;
         }
         .btnGhost:hover {
           border-color: rgba(255, 255, 255, 0.22);
