@@ -1,4 +1,3 @@
-// app/comprar/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -22,38 +21,46 @@ type CheckPurchaseResponse = {
   error?: string;
 };
 
-function digitsOnly(v: string) {
+function digits(v: string) {
   return (v || "").replace(/\D+/g, "");
 }
 
-/**
- * Aceita input com/sem +55 e normaliza para:
- * - localBR: DDD + número (11 dígitos, com 9)
- * - e164: 55 + localBR
- */
-function normalizeBRWhatsapp(raw: string): { ok: boolean; localBR: string; e164: string } {
-  let p = digitsOnly(raw);
+function normalizeBRWhatsapp(input: string) {
+  // Aceita:
+  // 31 99999-9999
+  // 31999999999
+  // +55 31 99999-9999
+  // 5531999999999
+  let d = digits(input);
 
-  // remove 55 se vier junto
-  if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
-    p = p.slice(2);
-  }
+  if (d.startsWith("55")) d = d.slice(2);
 
-  // 10 dígitos = DDD + 8 (fixo) -> adiciona 9
-  if (p.length === 10) {
-    const ddd = p.slice(0, 2);
-    const rest = p.slice(2);
-    const localBR = `${ddd}9${rest}`;
-    return { ok: true, localBR, e164: `55${localBR}` };
-  }
+  // DDD + número:
+  // - 11 dígitos: ok (com 9)
+  // - 10 dígitos: assume sem 9 -> insere 9 após DDD (melhor compatibilidade)
+  if (d.length === 10) d = d.slice(0, 2) + "9" + d.slice(2);
 
-  // 11 dígitos = DDD + 9 dígitos
-  if (p.length === 11) {
-    const localBR = p;
-    return { ok: true, localBR, e164: `55${localBR}` };
-  }
+  if (d.length !== 11) return null;
 
-  return { ok: false, localBR: "", e164: "" };
+  return {
+    localBR: d, // DDD + número
+    e164: "55" + d, // para backend
+  };
+}
+
+function humanizeError(err: string | null) {
+  if (!err) return null;
+  const e = String(err);
+
+  if (e === "phone_required") return "Digite seu WhatsApp com DDD.";
+  if (e === "phone_invalid") return "WhatsApp inválido. Use DDD + número (ex: 31 99999-9999).";
+  if (e === "password_invalid") return "Crie uma senha com no mínimo 6 caracteres.";
+  if (e === "invalid_login") return "Este WhatsApp já existe, mas a senha está incorreta.";
+  if (e === "mp_create_failed") return "Falha ao gerar o Pix. Tente novamente.";
+  if (e === "server_error") return "Erro no servidor. Tente novamente em instantes.";
+
+  // fallback
+  return e.replaceAll("_", " ");
 }
 
 export default function ComprarPage() {
@@ -76,7 +83,7 @@ export default function ComprarPage() {
 
   const canSubmit = useMemo(() => {
     const n = normalizeBRWhatsapp(phone);
-    return n.ok && password.length >= 6 && !loading;
+    return !!n && password.length >= 6 && !loading;
   }, [phone, password, loading]);
 
   async function onCreatePurchase(e: React.FormEvent) {
@@ -85,15 +92,14 @@ export default function ComprarPage() {
     setPaid(false);
 
     const n = normalizeBRWhatsapp(phone);
-    if (!n.ok) return setError("Digite seu WhatsApp com DDD (Ex: 31 99999-9999).");
-    if (password.length < 6) return setError("Crie uma senha com no mínimo 6 caracteres.");
+    if (!n) return setError("phone_invalid");
+    if (password.length < 6) return setError("password_invalid");
 
     setLoading(true);
     try {
       const r = await fetch("/api/create_purchase", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        // ✅ ENVIA NO FORMATO QUE O BACKEND ESPERA (E.164 SEM +): 55 + DDD + número
         body: JSON.stringify({ phone: n.e164, password }),
       });
 
@@ -101,7 +107,6 @@ export default function ComprarPage() {
 
       if (!r.ok || data?.error) {
         setError(data?.error || "server_error");
-        setLoading(false);
         return;
       }
 
@@ -132,16 +137,13 @@ export default function ComprarPage() {
 
       const data = (await r.json().catch(() => ({}))) as CheckPurchaseResponse;
 
-      const isPaid =
-        data?.paid === true || String(data?.status || "").toLowerCase() === "paid";
+      const isPaid = data?.paid === true || String(data?.status || "").toLowerCase() === "paid";
 
       if (isPaid) {
         setPaid(true);
         router.push("/login");
         return;
       }
-
-      setError(null);
     } catch {
       setError("server_error");
     } finally {
@@ -167,6 +169,8 @@ export default function ComprarPage() {
     } catch {}
   }
 
+  const prettyError = humanizeError(error);
+
   return (
     <main className="page">
       <div className="bg" aria-hidden="true" />
@@ -181,8 +185,8 @@ export default function ComprarPage() {
       <header className="hero">
         <h1>Pagamento via Pix</h1>
         <p>
-          Digite seu WhatsApp e crie uma senha. Depois do pagamento, você entra com
-          esses dados para acessar o conteúdo.
+          Digite seu WhatsApp e crie uma senha. Depois do pagamento, você entra com esses dados
+          para acessar o conteúdo.
         </p>
       </header>
 
@@ -222,16 +226,14 @@ export default function ComprarPage() {
                 </Link>
               </div>
 
-              {error ? <div className="error">{error}</div> : null}
+              {prettyError ? <div className="error">{prettyError}</div> : null}
             </form>
           ) : (
             <div className="pixBox">
               <div className="pixHeader">
                 <div>
                   <strong>Pix gerado</strong>
-                  <div className="muted">
-                    Pague e você será enviado para o login automaticamente.
-                  </div>
+                  <div className="muted">Pague e você será enviado para o login automaticamente.</div>
                 </div>
                 <button className="btnGhostSmall" onClick={() => router.push("/login")}>
                   Ir para login
@@ -259,16 +261,11 @@ export default function ComprarPage() {
                     <button type="button" className="btnPrimary" onClick={copyPix}>
                       Copiar código
                     </button>
-                    <button
-                      type="button"
-                      className="btnGhost"
-                      onClick={checkNow}
-                      disabled={checking}
-                    >
+                    <button type="button" className="btnGhost" onClick={checkNow} disabled={checking}>
                       {checking ? "Verificando..." : "Já paguei"}
                     </button>
                   </div>
-                  {error ? <div className="error">{error}</div> : null}
+                  {prettyError ? <div className="error">{prettyError}</div> : null}
                 </div>
               </div>
             </div>
@@ -293,20 +290,22 @@ export default function ComprarPage() {
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
-          filter: saturate(1.02) contrast(1.02);
           transform: scale(1.02);
+          filter: saturate(1.05) contrast(1.03) brightness(1.02);
         }
 
+        /* ↓↓↓ AJUSTE PRINCIPAL: menos escuridão, mais “igual ao mock” */
         .vignette {
           position: absolute;
           inset: 0;
-          background: radial-gradient(
-              60% 55% at 50% 30%,
-              rgba(7, 11, 18, 0.1) 0%,
-              rgba(7, 11, 18, 0.55) 55%,
-              rgba(7, 11, 18, 0.88) 100%
-            ),
-            linear-gradient(180deg, rgba(7, 11, 18, 0.35), rgba(7, 11, 18, 0.7));
+          background:
+            radial-gradient(60% 55% at 50% 26%,
+              rgba(7, 11, 18, 0.05) 0%,
+              rgba(7, 11, 18, 0.42) 55%,
+              rgba(7, 11, 18, 0.72) 100%),
+            linear-gradient(180deg,
+              rgba(7, 11, 18, 0.22),
+              rgba(7, 11, 18, 0.55));
           pointer-events: none;
         }
 
@@ -323,9 +322,9 @@ export default function ComprarPage() {
           padding: 8px 12px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.35);
+          background: rgba(10, 16, 28, 0.28);
           backdrop-filter: blur(10px);
-          color: #e5e7eb;
+          color: rgba(229, 231, 235, 0.95);
           text-decoration: none;
         }
         .pill:hover {
@@ -342,12 +341,12 @@ export default function ComprarPage() {
         }
 
         .hero h1 {
-          margin: 10px 0 6px;
-          font-size: clamp(34px, 4.2vw, 56px);
+          margin: 12px 0 8px;
+          font-size: clamp(40px, 4.6vw, 64px);
           letter-spacing: -0.02em;
-          font-weight: 700;
+          font-weight: 800;
           color: rgba(229, 231, 235, 0.92);
-          text-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+          text-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
         }
 
         .hero p {
@@ -355,8 +354,8 @@ export default function ComprarPage() {
           max-width: 760px;
           font-size: 14px;
           line-height: 1.45;
-          color: rgba(229, 231, 235, 0.65);
-          text-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+          color: rgba(229, 231, 235, 0.70);
+          text-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
         }
 
         .center {
@@ -368,26 +367,26 @@ export default function ComprarPage() {
         }
 
         .card {
-          width: min(760px, 92vw);
+          width: min(920px, 92vw);
           border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(10, 16, 28, 0.42);
-          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(10, 16, 28, 0.34);
+          box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48);
           backdrop-filter: blur(18px);
-          padding: 18px;
+          padding: 20px;
         }
 
         .cardHead h2 {
           margin: 2px 0 6px;
           font-size: 20px;
-          font-weight: 700;
+          font-weight: 800;
           letter-spacing: -0.01em;
         }
 
         .cardHead span {
           display: block;
           font-size: 13px;
-          color: rgba(229, 231, 235, 0.62);
+          color: rgba(229, 231, 235, 0.70);
           margin-bottom: 14px;
         }
 
@@ -397,21 +396,32 @@ export default function ComprarPage() {
           gap: 12px;
         }
 
+        /* ↓↓↓ AJUSTE PRINCIPAL: input legível sempre */
         input {
           height: 46px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(15, 23, 42, 0.35);
-          color: rgba(229, 231, 235, 0.92);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(15, 23, 42, 0.46);
+          color: rgba(255, 255, 255, 0.92);
+          caret-color: rgba(255, 255, 255, 0.92);
           padding: 0 14px;
           outline: none;
         }
         input::placeholder {
-          color: rgba(229, 231, 235, 0.45);
+          color: rgba(229, 231, 235, 0.55);
         }
         input:focus {
-          border-color: rgba(147, 197, 253, 0.55);
+          border-color: rgba(147, 197, 253, 0.60);
           box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+        }
+
+        /* Chrome autofill fix */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+          -webkit-text-fill-color: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.46) inset;
+          transition: background-color 9999s ease-in-out 0s;
         }
 
         .actions {
@@ -423,12 +433,13 @@ export default function ComprarPage() {
 
         .btnPrimary {
           height: 42px;
+          min-width: 140px;
           padding: 0 16px;
           border-radius: 12px;
-          border: 1px solid rgba(59, 130, 246, 0.35);
-          background: rgba(59, 130, 246, 0.35);
-          color: rgba(229, 231, 235, 0.95);
-          font-weight: 600;
+          border: 1px solid rgba(59, 130, 246, 0.42);
+          background: rgba(59, 130, 246, 0.42);
+          color: rgba(255, 255, 255, 0.95);
+          font-weight: 700;
           cursor: pointer;
         }
         .btnPrimary:disabled {
@@ -440,14 +451,14 @@ export default function ComprarPage() {
           height: 42px;
           padding: 0 16px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(10, 16, 28, 0.12);
           color: rgba(229, 231, 235, 0.92);
           text-decoration: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-weight: 600;
+          font-weight: 700;
         }
         .btnGhost:hover {
           border-color: rgba(255, 255, 255, 0.22);
@@ -457,11 +468,11 @@ export default function ComprarPage() {
           height: 36px;
           padding: 0 12px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(10, 16, 28, 0.12);
           color: rgba(229, 231, 235, 0.92);
           cursor: pointer;
-          font-weight: 600;
+          font-weight: 700;
         }
 
         .error {
@@ -487,7 +498,7 @@ export default function ComprarPage() {
         .muted {
           margin-top: 4px;
           font-size: 13px;
-          color: rgba(229, 231, 235, 0.62);
+          color: rgba(229, 231, 235, 0.70);
         }
 
         .pixGrid {
@@ -499,8 +510,8 @@ export default function ComprarPage() {
 
         .qr {
           border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(15, 23, 42, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(15, 23, 42, 0.34);
           display: grid;
           place-items: center;
           padding: 14px;
@@ -514,30 +525,30 @@ export default function ComprarPage() {
         }
         .qrPlaceholder {
           font-size: 13px;
-          color: rgba(229, 231, 235, 0.62);
+          color: rgba(229, 231, 235, 0.70);
         }
 
         .copia {
           border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(15, 23, 42, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(15, 23, 42, 0.34);
           padding: 14px;
           display: grid;
           gap: 10px;
         }
         .label {
           font-size: 13px;
-          color: rgba(229, 231, 235, 0.7);
-          font-weight: 600;
+          color: rgba(229, 231, 235, 0.78);
+          font-weight: 800;
         }
         textarea {
           width: 100%;
           min-height: 92px;
           resize: none;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(10, 16, 28, 0.25);
-          color: rgba(229, 231, 235, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(10, 16, 28, 0.22);
+          color: rgba(229, 231, 235, 0.92);
           padding: 10px 12px;
           outline: none;
           font-size: 12px;
