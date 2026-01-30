@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -9,8 +10,32 @@ type LoginResponse = {
   error?: string;
 };
 
-function normalizeDigitsOnly(v: string) {
+function digitsOnly(v: string) {
   return (v || "").replace(/\D+/g, "");
+}
+
+/**
+ * Normaliza WhatsApp BR para o formato esperado no backend (DDD + número com 9).
+ * Não exige +55.
+ */
+function normalizeBRWhatsapp(raw: string) {
+  let p = digitsOnly(raw);
+
+  if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
+    p = p.slice(2);
+  }
+
+  if (p.length === 10) {
+    const ddd = p.slice(0, 2);
+    const rest = p.slice(2);
+    return { ok: true, phone: `${ddd}9${rest}` };
+  }
+
+  if (p.length === 11) {
+    return { ok: true, phone: p };
+  }
+
+  return { ok: false, phone: "" };
 }
 
 export default function LoginPage() {
@@ -25,16 +50,16 @@ export default function LoginPage() {
   const bgUrl = "/assets/bg-comprar-clean.webp";
 
   const canSubmit = useMemo(() => {
-    const p = normalizeDigitsOnly(phone);
-    return p.length >= 11 && password.length >= 6 && !loading;
+    const n = normalizeBRWhatsapp(phone);
+    return n.ok && password.length >= 6 && !loading;
   }, [phone, password, loading]);
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const p = normalizeDigitsOnly(phone);
-    if (p.length < 11) return setError("Digite seu WhatsApp com DDD (somente números).");
+    const n = normalizeBRWhatsapp(phone);
+    if (!n.ok) return setError("Digite seu WhatsApp com DDD (Ex: 31 99999-9999).");
     if (password.length < 6) return setError("Senha inválida.");
 
     setLoading(true);
@@ -42,7 +67,7 @@ export default function LoginPage() {
       const r = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: p, password }),
+        body: JSON.stringify({ phone: n.phone, password }),
       });
 
       const data = (await r.json().catch(() => ({}))) as LoginResponse;
@@ -53,7 +78,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Após login, manda para a rota que redireciona pro conteúdo
       router.push("/meus-acessos");
     } catch {
       setError("server_error");
@@ -75,7 +99,10 @@ export default function LoginPage() {
 
       <header className="hero">
         <h1>Entrar</h1>
-        <p>Entre com o mesmo WhatsApp e senha usados na compra. Depois disso, você recupera o acesso automaticamente.</p>
+        <p>
+          Entre com o mesmo WhatsApp e senha usados na compra. Depois disso, você
+          recupera o acesso automaticamente.
+        </p>
       </header>
 
       <section className="center">
@@ -144,7 +171,7 @@ export default function LoginPage() {
           inset: 0;
           background: radial-gradient(
               60% 55% at 50% 30%,
-              rgba(7, 11, 18, 0.10) 0%,
+              rgba(7, 11, 18, 0.1) 0%,
               rgba(7, 11, 18, 0.55) 55%,
               rgba(7, 11, 18, 0.88) 100%
             ),
@@ -212,7 +239,7 @@ export default function LoginPage() {
         .card {
           width: min(760px, 92vw);
           border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(10, 16, 28, 0.42);
           box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
           backdrop-filter: blur(18px);
@@ -242,7 +269,7 @@ export default function LoginPage() {
         input {
           height: 46px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(15, 23, 42, 0.35);
           color: rgba(229, 231, 235, 0.92);
           padding: 0 14px;
@@ -283,7 +310,7 @@ export default function LoginPage() {
           padding: 0 16px;
           border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.10);
+          background: rgba(10, 16, 28, 0.1);
           color: rgba(229, 231, 235, 0.92);
           text-decoration: none;
           display: inline-flex;
