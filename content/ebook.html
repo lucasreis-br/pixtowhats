@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -51,6 +52,7 @@
       outline:3px solid rgba(37,99,235,.35);
       outline-offset:2px;
     }
+
     .topbar{
       position:sticky;
       top:0;
@@ -109,11 +111,13 @@
       border-color:rgba(147,197,253,.22);
     }
     .btn-primary:hover{background:rgba(147,197,253,.22)}
+
     .container{
       max-width:980px;
       margin:0 auto;
       padding:18px 16px 80px;
     }
+
     .hero{
       padding:18px 0 6px;
     }
@@ -128,6 +132,7 @@
       color:var(--muted);
       max-width: 70ch;
     }
+
     .toc{
       margin:18px 0 28px;
       border:1px solid var(--border);
@@ -160,6 +165,13 @@
       text-decoration:none;
       display:block;
     }
+    .toc a small{
+      display:block;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:2px;
+    }
+
     .section{
       margin:0 0 18px;
       padding:18px 16px;
@@ -167,20 +179,191 @@
       border-radius:16px;
       background:var(--card);
       box-shadow: var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .section::after{
+      content:"";
+      position:absolute;
+      inset:-40px -40px auto auto;
+      width:420px;
+      height:260px;
+      background-image:url("%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='260' viewBox='0 0 420 260'%3E%3Cg fill='none' stroke='%23a7f3d0' stroke-width='2' opacity='0.22'%3E%3Cpath d='M40 210 C 120 150, 170 150, 250 210 S 360 270, 450 210'/%3E%3Cpath d='M40 60 C 120 120, 170 120, 250 60 S 360 0, 450 60'/%3E%3Cpath d='M90 80 L 210 180'/%3E%3Cpath d='M120 60 L 240 160'/%3E%3Cpath d='M150 40 L 270 140'/%3E%3C/g%3E%3C/svg%3E");
+      background-size:contain;
+      background-repeat:no-repeat;
+      opacity:.06;
+      pointer-events:none;
+      transform:rotate(8deg);
+    }
+    .section h2{
+      font-size:24px;
+      line-height:1.25;
+      margin:0 0 10px;
+    }
+    .section h3{
+      font-size:20px;
+      margin:18px 0 8px;
+    }
+    .section h4{
+      font-size:18px;
+      margin:16px 0 8px;
+    }
+    .section p{margin:0 0 12px}
+    .section ul{margin:0 0 12px; padding-left:22px}
+    .section li{margin:6px 0}
+
+    img{
+      max-width:100%;
+      height:auto;
+      border-radius:12px;
+    }
+    .icon{
+      width: min(180px, 100%);
+      margin:10px 0 6px;
+    }
+
+    .video-placeholder{
+      position:relative;
+      width:100%;
+      aspect-ratio:16/9;
+      background:rgba(255,255,255,.03);
+      border:1px dashed rgba(255,255,255,.18);
+      border-radius:14px;
+      margin:14px 0 6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:rgba(229,231,235,.70);
+      font-size:14px;
+    }
+    .video-placeholder::before{
+      content:"Placeholder do vídeo";
+    }
+
+    .pager{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:10px;
+      padding-top:6px;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+    .pager .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:12px;
+      font-size:14px;
+      cursor:pointer;
+    }
+
+    .backtop{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      border:1px solid var(--border);
+      background:rgba(15,23,42,.75);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 12px;
+      font-size:14px;
+      cursor:pointer;
+      box-shadow: var(--shadow);
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      html{scroll-behavior:auto}
+    }
+
+    @media (max-width:600px){
+      body{font-size:17px}
+      .brand{min-width:auto}
+      .hero h1{
+        font-size:34px;
+        line-height:1.2;
+        margin:0 0 8px;
+        letter-spacing:.2px;
+      }
+      .pager .btn{
+        appearance:none;
+        border:1px solid var(--border);
+        background:rgba(255,255,255,.04);
+        color:var(--text);
+        padding:8px 12px;
+        border-radius:12px;
+        font-size:14px;
+        cursor:pointer;
+      }
+    }
+
+    .scene{
+      position: relative;
+      height: 360px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      background-size: cover;
+      background-position: center;
+      margin: 18px 0 22px;
+      box-shadow: var(--shadow);
+    }
+    .scene::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(180deg, rgba(7,11,18,.70) 0%, rgba(7,11,18,.30) 45%, rgba(7,11,18,.78) 100%);
+    }
+    .scene-overlay{
+      position:absolute;
+      inset:0;
+      box-shadow: inset 0 0 140px rgba(0,0,0,.55);
+      pointer-events:none;
+    }
+    .scene-caption{
+      position:absolute;
+      left:14px;
+      bottom:12px;
+      right:14px;
+      font-size:14px;
+      color: rgba(229,231,235,.86);
+      background: rgba(15,23,42,.35);
+      border: 1px solid rgba(255,255,255,.10);
+      padding:10px 12px;
+      border-radius:14px;
+      backdrop-filter: blur(6px) saturate(140%);
+      max-width: 72ch;
+    }
+    .scene-caption strong{
+      display:block;
+      font-weight:700;
+      color: rgba(229,231,235,.96);
+      margin-bottom:2px;
+    }
+    @media (max-width:600px){
+      .scene{
+        height:auto;
+        aspect-ratio: 16 / 9;
+      }
+      .scene-caption{font-size:13px;}
     }
   </style>
 </head>
 
 <body>
-  <div class="topbar">
+  <div class="topbar" role="navigation" aria-label="Primary">
     <div class="topbar-inner">
       <div class="brand">
-        <p class="brand-title">Um método para reduzir o consumo de pornografia.</p>
+        <p class="brand-title">Um método para reduzir o seu consumo de pornografia.</p>
         <p class="brand-sub">Um estudo observacional pessoal de 90 dias</p>
       </div>
       <div class="topbar-actions">
-        <button class="btn" id="prevBtn">Anterior</button>
-        <button class="btn btn-primary" id="nextBtn">Próximo</button>
+        <button class="btn" id="tocToggle" type="button" aria-expanded="true" aria-controls="tocList">Conteúdo</button>
+        <button class="btn" id="prevBtn" type="button">Anterior</button>
+        <button class="btn btn-primary" id="nextBtn" type="button">Próximo</button>
       </div>
     </div>
   </div>
@@ -191,57 +374,184 @@
       <p>Entender o problema já é metade da solução.</p>
     </header>
 
-    <section class="section">
+    <nav class="toc" aria-label="Table of contents">
+      <div class="toc-head">
+        <h2>Conteúdo</h2>
+        <span style="color:var(--muted);font-size:13px">Toque em um item para pular</span>
+      </div>
+      <ul id="tocList">
+        <li><a href="#introduction">Introdução — Como Este Estudo Começou</a></li>
+        <li><a href="#core-question">Pergunta Central do Estudo</a></li>
+        <li><a href="#groups">Os Três Grupos de Usuários</a></li>
+        <li><a href="#porn-vs-sex">Pornografia vs Sexo Sem Amor</a></li>
+        <li><a href="#final-method">Final — O Método</a></li>
+        <li><a href="#meaning">Dê uma olhada - (Opcional)</a></li>
+      </ul>
+    </nav>
+
+    <!-- Introduction Section -->
+    <section id="introduction" class="section">
       <h2>Introdução — Como Este Estudo Começou</h2>
-      <p>Tive meu primeiro contato com pornografia quando tinha cerca de 15 anos. Na época, parecia normal e insignificante. Com o passar dos anos, tornou-se um hábito recorrente — às vezes mais presente, às vezes menos, mas sempre parte da minha rotina.</p>
-      <p>Por um longo período, esse comportamento seguiu um padrão repetitivo de tentativas de mudança e recaídas. Mesmo quando eu conseguia parar por curtos períodos, o ciclo subjacente permanecia inalterado.</p>
+
+      <p>Eu tive meu primeiro contato com Pornografia quando eu tinha por volta de 15 anos. Na época, parecia normal e insignificante. Com o passar dos anos, virou um hábito recorrente — às vezes mais presente, às vezes menos, mas sempre parte da minha rotina.</p>
+
+      <p>Por um longo período, esse comportamento seguiu um padrão repetitivo de tentativas de mudança e recaída eventual. Mesmo quando eu consegui parar por curtos períodos, o ciclo por trás disso permaneceu inalterado.</p>
+
       <p>O que ficou claro foi que conselhos comuns e explicações superficiais não eram suficientes para explicar por que o comportamento persistia.</p>
-      <p>Este estudo foca em entender os mecanismos internos por trás desse hábito: como ele se forma, como se repete e o que o sustenta ao longo do tempo.</p>
+
+      <p>Este estudo foca em entender os mecanismos internos por trás desse hábito: como ele se forma, como ele se repete e o que sustenta ele ao longo do tempo.</p>
     </section>
 
-    <section class="section">
+    <!-- PATH FIX: /assets/... (because files are in public/assets) -->
+    <div class="scene" style="background-image:url('/assets/scene1_new.png')" role="img" aria-label="Ciclo noturno. Sozinho, cansado, e puxado de volta para a tela.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Ciclo noturno</strong>Sozinho, cansado, e puxado de volta para a tela.</div>
+    </div>
+
+    <!-- Core Question Section -->
+    <section id="core-question" class="section">
       <h2>Pergunta Central do Estudo</h2>
-      <p><strong>Por que a pornografia é tão difícil de abandonar em comparação com outros hábitos?</strong></p>
+      <p>A pergunta principal por trás de todo este estudo era simples:</p>
+      <p><strong>Por que a pornografia é tão difícil de largar em comparação com outros hábitos?</strong></p>
       <ul>
-        <li>Pessoas param de beber álcool.</li>
-        <li>Pessoas param de fumar.</li>
-        <li>Pessoas param com açúcar, jogos, redes sociais.</li>
+        <li>Pessoas largam o álcool.</li>
+        <li>Pessoas largam cigarro.</li>
+        <li>Pessoas largam açúcar, jogos, redes sociais.</li>
       </ul>
       <p>Mas a pornografia parece diferente.</p>
-      <p>Ela parece mais persistente, mais interna, mais resistente à força de vontade.</p>
-      <p>Suspeitei que o problema não era falta de disciplina, mas falta de compreensão.</p>
+      <p>Parece mais persistente, mais interna, mais resistente à força de vontade.</p>
+      <p>Eu suspeitei que o problema não era falta de disciplina, mas falta de entendimento.</p>
+      <div class="video-placeholder"></div>
     </section>
 
-    <section class="section">
+    <div class="scene" style="background-image:url('/assets/scene2_new.png')" role="img" aria-label="A pergunta aparece. Um momento silencioso que vira uma decisão de estudar o hábito.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>A pergunta aparece</strong>Um momento silencioso que vira uma decisão de estudar o hábito.</div>
+    </div>
+
+    <!-- User Groups Section -->
+    <section id="groups" class="section">
       <h2>Os Três Grupos de Usuários</h2>
-      <p>Ao me observar e observar outras pessoas, ficou claro que nem todos consomem pornografia pelo mesmo motivo.</p>
-      <p>Identifiquei três padrões principais:</p>
-      <ul>
-        <li>Grupo A — Usuários Visuais / Focados em Objetos</li>
-        <li>Grupo B — Usuários de Fantasia / Narrativa</li>
-        <li>Grupo C — Usuários de Afeto / Apego</li>
-      </ul>
+      <p>Enquanto eu me observava e observava outras pessoas, ficou claro que nem todo mundo assiste pornografia pelo mesmo motivo.</p>
+      <p>É por isso que conselhos genéricos frequentemente falham.</p>
+      <p>Eu identifiquei três padrões principais. Cada um tem um “motor” diferente, o que significa que cada um precisa de uma abordagem diferente.</p>
+
+      <h3>Grupo A — Usuários Visuais / Focados em Objetos</h3>
+      <h3>Grupo B — Usuários de Fantasia / Narrativa</h3>
+      <h3>Grupo C — Usuários de Afeto / Apego</h3>
+      <p><em>Abaixo, você vai começar a ver a qual desses grupos você pertence — e o que isso revela sobre você.</em></p>
+      <div class="video-placeholder"></div>
     </section>
 
-    <section class="section">
+    <div class="scene" style="background-image:url('/assets/scene2.5.png')" role="img" aria-label="Sexo sem amor segue o mesmo padrão da pornografia.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Ciclo noturno</strong>Sexo sem amor segue o mesmo padrão da pornografia.</div>
+    </div>
+
+    <!-- Pornography vs Sex Without Love Section -->
+    <section id="porn-vs-sex" class="section">
       <h2>Pornografia vs Sexo Sem Amor</h2>
+      <p>Outra pergunta que eu explorei foi:</p>
       <p><strong>Por que as pessoas frequentemente se sentem vazias depois?</strong></p>
-      <p>À primeira vista, pode parecer diferente — mas a comparação revela algo inesperado.</p>
-      <p><em>Agora, vamos falar sobre por que você não precisa sentir culpa após consumir pornografia.</em></p>
+      <p>Eu comparei pornografia com outra situação que acontece todo dia, mas raramente é julgada do mesmo jeito.</p>
+      <p>À primeira vista, pode parecer completamente diferente — mas a comparação revela algo inesperado.</p>
+
+      <p><em>Agora, vamos falar sobre por que você não precisa sentir culpa depois de consumir Pornografia</em></p>
+      <div class="video-placeholder"></div>
     </section>
 
-    <section class="section">
+    <div class="scene" style="background-image:url('/assets/scene3_new.png')" role="img" aria-label="O compromisso de 90 dias. Enfrentando você mesmo com clareza e coragem.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>O compromisso de 90 dias</strong>Enfrentando você mesmo com clareza e coragem.</div>
+    </div>
+
+    <!-- Final — The Method Section -->
+    <section id="final-method" class="section">
       <h2>Final — O Método</h2>
       <p>É aqui que a observação termina e a ação começa.</p>
-      <p>Esta seção é prática: ações claras, aplicadas imediatamente, projetadas para mudar o comportamento — não analisá-lo.</p>
+      <p>O vídeo abaixo mostra os passos exatos para seguir quando um impulso aparece, focando no que fazer em tempo real em vez de por que o hábito existe.</p>
+      <p><strong>Esta seção é prática:</strong> ações claras, aplicadas imediatamente, feitas para mudar comportamento — não analisar ele.</p>
+      <div class="video-placeholder"></div>
     </section>
 
-    <section class="section">
-      <h2>Isso é opcional.</h2>
-      <p>O significado pode vir de diferentes fontes.</p>
-      <p>O método funciona de forma independente porque é biológico.</p>
-      <p>O significado fortalece o compromisso com qualquer objetivo.</p>
+    <div class="scene" style="background-image:url('/assets/scene7.png')" role="img" aria-label="Substituição saudável. Movimento, ar fresco e conexão real substituem o ciclo antigo.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>Você não deve nada.</strong>Mesmo que você não seja religioso, talvez você precise ouvir isso, independente de onde você esteja hoje.</div>
+    </div>
+
+    <!-- Meaning and Faith Section -->
+    <section id="meaning" class="section">
+      <h2>Isto é opcional.</h2>
+      <p>Significado pode vir de fontes diferentes.</p>
+      <p>O método funciona de forma independente porque é biológico.<br />Significado fortalece compromisso para qualquer objetivo.</p>
+      <div class="video-placeholder"></div>
     </section>
+
+    <div class="scene" style="background-image:url('/assets/scene6_new.png')" role="img" aria-label="De volta à vida. Presença, amizade e pertencimento.">
+      <div class="scene-overlay"></div>
+      <div class="scene-caption"><strong>De volta à vida</strong>Lembre: Todo mundo está procrastinando de alguma forma.</div>
+    </div>
   </div>
+
+  <button class="backtop" type="button" id="backTop" aria-label="Voltar ao topo">↑ Topo</button>
+
+  <script>
+    (function(){
+      const sections = Array.from(document.querySelectorAll('section.section[id]'));
+      const tocToggle = document.getElementById('tocToggle');
+      const tocList = document.getElementById('tocList');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const backTop = document.getElementById('backTop');
+
+      function currentSectionIndex(){
+        const y = window.scrollY || document.documentElement.scrollTop;
+        const offset = 140;
+        let idx = 0;
+        for (let i = 0; i < sections.length; i++){
+          const top = sections[i].getBoundingClientRect().top + window.scrollY;
+          if (top - offset <= y) idx = i;
+        }
+        return idx;
+      }
+
+      function goToIndex(i){
+        if (!sections[i]) return;
+        sections[i].scrollIntoView({behavior:'smooth', block:'start'});
+      }
+
+      function updateButtons(){
+        const idx = currentSectionIndex();
+        prevBtn.disabled = idx <= 0;
+        nextBtn.disabled = idx >= sections.length - 1;
+      }
+
+      prevBtn.addEventListener('click', () => goToIndex(currentSectionIndex() - 1));
+      nextBtn.addEventListener('click', () => goToIndex(currentSectionIndex() + 1));
+
+      tocToggle.addEventListener('click', () => {
+        const isHidden = tocList.style.display === 'none';
+        tocList.style.display = isHidden ? '' : 'none';
+        tocToggle.setAttribute('aria-expanded', String(isHidden));
+      });
+
+      backTop.addEventListener('click', () => {
+        document.getElementById('top').scrollIntoView({behavior:'smooth', block:'start'});
+      });
+
+      window.addEventListener('scroll', updateButtons, {passive:true});
+      window.addEventListener('load', updateButtons);
+
+      tocList.addEventListener('click', (e) => {
+        const a = e.target.closest('a');
+        if (!a) return;
+        if (window.matchMedia('(max-width: 600px)').matches){
+          tocList.style.display = 'none';
+          tocToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
+```
