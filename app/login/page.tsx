@@ -14,11 +14,7 @@ function digitsOnly(v: string) {
   return (v || "").replace(/\D+/g, "");
 }
 
-/**
- * Normaliza WhatsApp BR para o formato esperado no backend (DDD + número com 9).
- * Não exige +55.
- */
-function normalizeBRWhatsapp(raw: string) {
+function normalizeBRWhatsapp(raw: string): { ok: boolean; localBR: string; e164: string } {
   let p = digitsOnly(raw);
 
   if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
@@ -28,14 +24,16 @@ function normalizeBRWhatsapp(raw: string) {
   if (p.length === 10) {
     const ddd = p.slice(0, 2);
     const rest = p.slice(2);
-    return { ok: true, phone: `${ddd}9${rest}` };
+    const localBR = `${ddd}9${rest}`;
+    return { ok: true, localBR, e164: `55${localBR}` };
   }
 
   if (p.length === 11) {
-    return { ok: true, phone: p };
+    const localBR = p;
+    return { ok: true, localBR, e164: `55${localBR}` };
   }
 
-  return { ok: false, phone: "" };
+  return { ok: false, localBR: "", e164: "" };
 }
 
 export default function LoginPage() {
@@ -67,7 +65,8 @@ export default function LoginPage() {
       const r = await fetch("/api/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: n.phone, password }),
+        // ✅ ENVIA 55 + DDD + número
+        body: JSON.stringify({ phone: n.e164, password }),
       });
 
       const data = (await r.json().catch(() => ({}))) as LoginResponse;
