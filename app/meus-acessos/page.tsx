@@ -14,8 +14,7 @@ export default async function MeusAcessosPage() {
     `${SUPABASE_URL}/rest/v1/purchases` +
     `?customer_id=eq.${encodeURIComponent(String(session.customer_id))}` +
     `&status=eq.paid` +
-    `&select=token,created_at` +
-    `&order=created_at.desc` +
+    `&select=id` +
     `&limit=1`;
 
   const r = await fetch(url, {
@@ -29,9 +28,10 @@ export default async function MeusAcessosPage() {
   if (!r.ok) redirect("/comprar");
 
   const rows = await r.json().catch(() => []);
-  const token = rows?.[0]?.token;
+  const hasPaid = Boolean(rows?.[0]?.id);
 
-  if (!token) redirect("/comprar");
+  if (!hasPaid) redirect("/comprar");
 
-  redirect(`/a/${token}`);
+  // ✅ não expõe token na URL
+  redirect("/a");
 }
