@@ -27,32 +27,33 @@ function digitsOnly(v: string) {
 }
 
 /**
- * Normaliza WhatsApp BR para E.164 SEM exigir +55 no input.
- * Aceita:
- * - 10 dígitos (DD + número sem 9) -> adiciona 9 (celular)
- * - 11 dígitos (DD + número com 9) -> mantém
- * - 12-13 dígitos começando com 55 -> remove 55 e aplica as regras acima
+ * Aceita input com/sem +55 e normaliza para:
+ * - localBR: DDD + número (11 dígitos, com 9)
+ * - e164: 55 + localBR
  */
-function normalizeBRWhatsapp(raw: string) {
+function normalizeBRWhatsapp(raw: string): { ok: boolean; localBR: string; e164: string } {
   let p = digitsOnly(raw);
 
-  // remove +55 / 55 se o usuário colar
+  // remove 55 se vier junto
   if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
     p = p.slice(2);
   }
 
-  // agora deve ser 10 ou 11 (DDD + número)
+  // 10 dígitos = DDD + 8 (fixo) -> adiciona 9
   if (p.length === 10) {
     const ddd = p.slice(0, 2);
-    const rest = p.slice(2); // 8 dígitos
-    return { ok: true, phone: `${ddd}9${rest}` }; // força celular (9º dígito)
+    const rest = p.slice(2);
+    const localBR = `${ddd}9${rest}`;
+    return { ok: true, localBR, e164: `55${localBR}` };
   }
 
+  // 11 dígitos = DDD + 9 dígitos
   if (p.length === 11) {
-    return { ok: true, phone: p };
+    const localBR = p;
+    return { ok: true, localBR, e164: `55${localBR}` };
   }
 
-  return { ok: false, phone: "" };
+  return { ok: false, localBR: "", e164: "" };
 }
 
 export default function ComprarPage() {
@@ -92,7 +93,8 @@ export default function ComprarPage() {
       const r = await fetch("/api/create_purchase", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: n.phone, password }),
+        // ✅ ENVIA NO FORMATO QUE O BACKEND ESPERA (E.164 SEM +): 55 + DDD + número
+        body: JSON.stringify({ phone: n.e164, password }),
       });
 
       const data = (await r.json().catch(() => ({}))) as CreatePurchaseResponse;
