@@ -1,3 +1,4 @@
+// app/comprar/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -21,8 +22,37 @@ type CheckPurchaseResponse = {
   error?: string;
 };
 
-function normalizeDigitsOnly(v: string) {
+function digitsOnly(v: string) {
   return (v || "").replace(/\D+/g, "");
+}
+
+/**
+ * Normaliza WhatsApp BR para E.164 SEM exigir +55 no input.
+ * Aceita:
+ * - 10 dígitos (DD + número sem 9) -> adiciona 9 (celular)
+ * - 11 dígitos (DD + número com 9) -> mantém
+ * - 12-13 dígitos começando com 55 -> remove 55 e aplica as regras acima
+ */
+function normalizeBRWhatsapp(raw: string) {
+  let p = digitsOnly(raw);
+
+  // remove +55 / 55 se o usuário colar
+  if (p.startsWith("55") && (p.length === 12 || p.length === 13)) {
+    p = p.slice(2);
+  }
+
+  // agora deve ser 10 ou 11 (DDD + número)
+  if (p.length === 10) {
+    const ddd = p.slice(0, 2);
+    const rest = p.slice(2); // 8 dígitos
+    return { ok: true, phone: `${ddd}9${rest}` }; // força celular (9º dígito)
+  }
+
+  if (p.length === 11) {
+    return { ok: true, phone: p };
+  }
+
+  return { ok: false, phone: "" };
 }
 
 export default function ComprarPage() {
@@ -44,8 +74,8 @@ export default function ComprarPage() {
   const bgUrl = "/assets/bg-comprar-clean.webp";
 
   const canSubmit = useMemo(() => {
-    const p = normalizeDigitsOnly(phone);
-    return p.length >= 11 && password.length >= 6 && !loading;
+    const n = normalizeBRWhatsapp(phone);
+    return n.ok && password.length >= 6 && !loading;
   }, [phone, password, loading]);
 
   async function onCreatePurchase(e: React.FormEvent) {
@@ -53,8 +83,8 @@ export default function ComprarPage() {
     setError(null);
     setPaid(false);
 
-    const p = normalizeDigitsOnly(phone);
-    if (p.length < 11) return setError("Digite seu WhatsApp com DDD (somente números).");
+    const n = normalizeBRWhatsapp(phone);
+    if (!n.ok) return setError("Digite seu WhatsApp com DDD (Ex: 31 99999-9999).");
     if (password.length < 6) return setError("Crie uma senha com no mínimo 6 caracteres.");
 
     setLoading(true);
@@ -62,7 +92,7 @@ export default function ComprarPage() {
       const r = await fetch("/api/create_purchase", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone: p, password }),
+        body: JSON.stringify({ phone: n.phone, password }),
       });
 
       const data = (await r.json().catch(() => ({}))) as CreatePurchaseResponse;
@@ -94,7 +124,6 @@ export default function ComprarPage() {
     setError(null);
 
     try {
-      // Tenta GET ?token=... (forma comum)
       const r = await fetch(`/api/check_purchase?token=${encodeURIComponent(token)}`, {
         cache: "no-store",
       });
@@ -106,12 +135,10 @@ export default function ComprarPage() {
 
       if (isPaid) {
         setPaid(true);
-        // fluxo desejado: pagou -> vai pro login
         router.push("/login");
         return;
       }
 
-      // ainda não pago
       setError(null);
     } catch {
       setError("server_error");
@@ -120,7 +147,6 @@ export default function ComprarPage() {
     }
   }
 
-  // Auto-check leve (opcional) enquanto o QR está aberto
   useEffect(() => {
     if (!token || paid) return;
 
@@ -136,31 +162,28 @@ export default function ComprarPage() {
     if (!pixCopiaCola) return;
     try {
       await navigator.clipboard.writeText(pixCopiaCola);
-    } catch {
-      // se bloquear, o usuário ainda pode selecionar manualmente
-    }
+    } catch {}
   }
 
   return (
     <main className="page">
-      {/* Background */}
       <div className="bg" aria-hidden="true" />
       <div className="vignette" aria-hidden="true" />
 
-      {/* Top-right action (igual seu layout atual, mas discreto) */}
       <div className="topRight">
         <Link className="pill" href="/login">
           Entrar
         </Link>
       </div>
 
-      {/* Title */}
       <header className="hero">
         <h1>Pagamento via Pix</h1>
-        <p>Digite seu WhatsApp e crie uma senha. Depois do pagamento, você entra com esses dados para acessar o conteúdo.</p>
+        <p>
+          Digite seu WhatsApp e crie uma senha. Depois do pagamento, você entra com
+          esses dados para acessar o conteúdo.
+        </p>
       </header>
 
-      {/* Card */}
       <section className="center">
         <div className="card">
           <div className="cardHead">
@@ -204,7 +227,9 @@ export default function ComprarPage() {
               <div className="pixHeader">
                 <div>
                   <strong>Pix gerado</strong>
-                  <div className="muted">Pague e você será enviado para o login automaticamente.</div>
+                  <div className="muted">
+                    Pague e você será enviado para o login automaticamente.
+                  </div>
                 </div>
                 <button className="btnGhostSmall" onClick={() => router.push("/login")}>
                   Ir para login
@@ -259,7 +284,6 @@ export default function ComprarPage() {
           font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
         }
 
-        /* Background image */
         .bg {
           position: absolute;
           inset: 0;
@@ -271,13 +295,12 @@ export default function ComprarPage() {
           transform: scale(1.02);
         }
 
-        /* Dark overlay + vignette like the mock */
         .vignette {
           position: absolute;
           inset: 0;
           background: radial-gradient(
               60% 55% at 50% 30%,
-              rgba(7, 11, 18, 0.10) 0%,
+              rgba(7, 11, 18, 0.1) 0%,
               rgba(7, 11, 18, 0.55) 55%,
               rgba(7, 11, 18, 0.88) 100%
             ),
@@ -345,7 +368,7 @@ export default function ComprarPage() {
         .card {
           width: min(760px, 92vw);
           border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(10, 16, 28, 0.42);
           box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
           backdrop-filter: blur(18px);
@@ -375,7 +398,7 @@ export default function ComprarPage() {
         input {
           height: 46px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(15, 23, 42, 0.35);
           color: rgba(229, 231, 235, 0.92);
           padding: 0 14px;
@@ -416,7 +439,7 @@ export default function ComprarPage() {
           padding: 0 16px;
           border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.10);
+          background: rgba(10, 16, 28, 0.1);
           color: rgba(229, 231, 235, 0.92);
           text-decoration: none;
           display: inline-flex;
@@ -433,7 +456,7 @@ export default function ComprarPage() {
           padding: 0 12px;
           border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.10);
+          background: rgba(10, 16, 28, 0.1);
           color: rgba(229, 231, 235, 0.92);
           cursor: pointer;
           font-weight: 600;
@@ -449,7 +472,6 @@ export default function ComprarPage() {
           font-size: 13px;
         }
 
-        /* Pix state */
         .pixBox {
           display: grid;
           gap: 14px;
@@ -475,8 +497,8 @@ export default function ComprarPage() {
 
         .qr {
           border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(15, 23, 42, 0.30);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(15, 23, 42, 0.3);
           display: grid;
           place-items: center;
           padding: 14px;
@@ -495,8 +517,8 @@ export default function ComprarPage() {
 
         .copia {
           border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(15, 23, 42, 0.30);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(15, 23, 42, 0.3);
           padding: 14px;
           display: grid;
           gap: 10px;
@@ -511,7 +533,7 @@ export default function ComprarPage() {
           min-height: 92px;
           resize: none;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(10, 16, 28, 0.25);
           color: rgba(229, 231, 235, 0.9);
           padding: 10px 12px;
@@ -520,7 +542,6 @@ export default function ComprarPage() {
           line-height: 1.35;
         }
 
-        /* Responsive */
         @media (max-width: 820px) {
           .form .row {
             grid-template-columns: 1fr;
