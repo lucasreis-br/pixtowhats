@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -222,22 +221,37 @@
       margin:10px 0 6px;
     }
 
-    .video-placeholder{
-      position:relative;
+    /* VIDEO */
+    .video-wrap{
       width:100%;
       aspect-ratio:16/9;
-      background:rgba(255,255,255,.03);
-      border:1px dashed rgba(255,255,255,.18);
       border-radius:14px;
       margin:14px 0 6px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:rgba(229,231,235,.70);
-      font-size:14px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(10,16,28,.35);
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      position: relative;
     }
-    .video-placeholder::before{
-      content:"Placeholder do vídeo";
+    .video-wrap::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: radial-gradient(70% 60% at 50% 35%, rgba(147,197,253,.12), transparent 55%);
+      pointer-events:none;
+    }
+    video.video{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      background: rgba(10,16,28,.35);
+    }
+    .video-hint{
+      margin-top: 8px;
+      font-size: 13px;
+      color: rgba(229,231,235,.60);
     }
 
     .pager{
@@ -421,7 +435,14 @@
       <p>Mas a pornografia parece diferente.</p>
       <p>Parece mais persistente, mais interna, mais resistente à força de vontade.</p>
       <p>Eu suspeitei que o problema não era falta de disciplina, mas falta de entendimento.</p>
-      <div class="video-placeholder"></div>
+
+      <!-- VIDEO 1 -->
+      <div class="video-wrap">
+        <video class="video" controls preload="metadata" playsinline controlsList="nodownload noplaybackrate" data-video="Take01.mp4">
+          <source data-src="" type="video/mp4">
+        </video>
+      </div>
+      <div class="video-hint">Se o vídeo não carregar, verifique se o “Public Development URL” do R2 está habilitado e se o CORS permite o seu domínio.</div>
     </section>
 
     <div class="scene" style="background-image:url('/assets/scene2_new.png')" role="img" aria-label="A pergunta aparece. Um momento silencioso que vira uma decisão de estudar o hábito.">
@@ -440,7 +461,13 @@
       <h3>Grupo B — Usuários de Fantasia / Narrativa</h3>
       <h3>Grupo C — Usuários de Afeto / Apego</h3>
       <p><em>Abaixo, você vai começar a ver a qual desses grupos você pertence — e o que isso revela sobre você.</em></p>
-      <div class="video-placeholder"></div>
+
+      <!-- VIDEO 2 -->
+      <div class="video-wrap">
+        <video class="video" controls preload="metadata" playsinline controlsList="nodownload noplaybackrate" data-video="Take02.mp4">
+          <source data-src="" type="video/mp4">
+        </video>
+      </div>
     </section>
 
     <div class="scene" style="background-image:url('/assets/scene2.5.png')" role="img" aria-label="Sexo sem amor segue o mesmo padrão da pornografia.">
@@ -457,7 +484,13 @@
       <p>À primeira vista, pode parecer completamente diferente — mas a comparação revela algo inesperado.</p>
 
       <p><em>Agora, vamos falar sobre por que você não precisa sentir culpa depois de consumir Pornografia</em></p>
-      <div class="video-placeholder"></div>
+
+      <!-- VIDEO 3 -->
+      <div class="video-wrap">
+        <video class="video" controls preload="metadata" playsinline controlsList="nodownload noplaybackrate" data-video="Take03.mp4">
+          <source data-src="" type="video/mp4">
+        </video>
+      </div>
     </section>
 
     <div class="scene" style="background-image:url('/assets/scene3_new.png')" role="img" aria-label="O compromisso de 90 dias. Enfrentando você mesmo com clareza e coragem.">
@@ -471,7 +504,13 @@
       <p>É aqui que a observação termina e a ação começa.</p>
       <p>O vídeo abaixo mostra os passos exatos para seguir quando um impulso aparece, focando no que fazer em tempo real em vez de por que o hábito existe.</p>
       <p><strong>Esta seção é prática:</strong> ações claras, aplicadas imediatamente, feitas para mudar comportamento — não analisar ele.</p>
-      <div class="video-placeholder"></div>
+
+      <!-- VIDEO 4 -->
+      <div class="video-wrap">
+        <video class="video" controls preload="metadata" playsinline controlsList="nodownload noplaybackrate" data-video="Take04.mp4">
+          <source data-src="" type="video/mp4">
+        </video>
+      </div>
     </section>
 
     <div class="scene" style="background-image:url('/assets/scene7.png')" role="img" aria-label="Substituição saudável. Movimento, ar fresco e conexão real substituem o ciclo antigo.">
@@ -484,7 +523,13 @@
       <h2>Isto é opcional.</h2>
       <p>Significado pode vir de fontes diferentes.</p>
       <p>O método funciona de forma independente porque é biológico.<br />Significado fortalece compromisso para qualquer objetivo.</p>
-      <div class="video-placeholder"></div>
+
+      <!-- VIDEO 5 -->
+      <div class="video-wrap">
+        <video class="video" controls preload="metadata" playsinline controlsList="nodownload noplaybackrate" data-video="Take05.mp4">
+          <source data-src="" type="video/mp4">
+        </video>
+      </div>
     </section>
 
     <div class="scene" style="background-image:url('/assets/scene6_new.png')" role="img" aria-label="De volta à vida. Presença, amizade e pertencimento.">
@@ -497,6 +542,52 @@
 
   <script>
     (function(){
+      // 1) COLOQUE AQUI o seu Public Development URL do bucket (o que aparece em Settings).
+      // Exemplo (o seu vai ser diferente):
+      // const R2_PUBLIC_BASE = "https://pub-ac42f578b97c484e9a5d3583495dd537.r2.dev";
+      const R2_PUBLIC_BASE = "https://pub-XXXX.r2.dev";
+
+      // 2) Monta URLs dos vídeos (Take01.mp4 ... Take05.mp4)
+      function buildVideoUrl(fileName){
+        return R2_PUBLIC_BASE.replace(/\/+$/,'') + "/" + encodeURIComponent(fileName);
+      }
+
+      // 3) Lazy-load: só seta o src quando o vídeo entrar na tela (evita baixar 300MB sem necessidade)
+      const videos = Array.from(document.querySelectorAll('video.video[data-video]'));
+
+      function loadVideo(v){
+        if (v.dataset.loaded === "1") return;
+        const fileName = v.getAttribute("data-video");
+        const url = buildVideoUrl(fileName);
+
+        const source = v.querySelector("source");
+        if (source){
+          source.src = url;
+        } else {
+          v.src = url;
+        }
+
+        v.dataset.loaded = "1";
+        // Força o elemento a reconhecer o source recém-setado
+        v.load();
+      }
+
+      if ("IntersectionObserver" in window){
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            loadVideo(entry.target);
+            io.unobserve(entry.target);
+          });
+        }, { rootMargin: "300px 0px" });
+
+        videos.forEach(v => io.observe(v));
+      } else {
+        // fallback
+        videos.forEach(loadVideo);
+      }
+
+      // ===== Navegação existente (mantida) =====
       const sections = Array.from(document.querySelectorAll('section.section[id]'));
       const tocToggle = document.getElementById('tocToggle');
       const tocList = document.getElementById('tocList');
@@ -554,4 +645,3 @@
   </script>
 </body>
 </html>
-```
