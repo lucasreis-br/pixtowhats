@@ -650,7 +650,7 @@ video.video{
       window.addEventListener('scroll', updateButtons, {passive:true});
       window.addEventListener('load', updateButtons);
 
-      tocList.addEventListener('click', (e) => {
+            tocList.addEventListener('click', (e) => {
         const a = e.target.closest('a');
         if (!a) return;
         if (window.matchMedia('(max-width: 600px)').matches){
@@ -660,5 +660,51 @@ video.video{
       });
     })();
   </script>
+
+  <!-- BLOQUEIO BÁSICO DE DOWNLOAD -->
+  <script>
+    (function () {
+      // Bloqueia botão direito
+      document.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      // Bloqueia atalhos comuns de download / inspeção
+      document.addEventListener("keydown", function (e) {
+        const k = e.key.toLowerCase();
+
+        if (e.key === "F12") {
+          e.preventDefault();
+          return false;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && (
+          k === "s" || // salvar
+          k === "u" || // ver código-fonte
+          k === "p" || // imprimir
+          k === "i" || // devtools
+          k === "j" || // console
+          k === "c"    // copiar
+        )) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Proteção extra nos vídeos
+      document.querySelectorAll("video").forEach(video => {
+        video.setAttribute("draggable", "false");
+        video.addEventListener("dragstart", e => e.preventDefault());
+      });
+
+      // Bloqueia clique direito especificamente no vídeo
+      document.addEventListener("mousedown", function (e) {
+        if (e.target.tagName === "VIDEO" && e.button === 2) {
+          e.preventDefault();
+        }
+      });
+    })();
+  </script>
+
 </body>
 </html>
