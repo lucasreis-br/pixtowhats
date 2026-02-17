@@ -67,16 +67,12 @@ function msToClock(ms: number) {
 export default function ComprarPage() {
   const router = useRouter();
 
-  // ====== Você pode ajustar somente aqui ======
-  const PRODUCT_TITLE = "Reduza o consumo de pornografia a quase zero";
+  // ====== Ajustes aqui ======
   const OLD_PRICE = 79.99;
   const NEW_PRICE = 24.99;
-  const CTA_TEXT = "Quero pagar no Pix";
-
-  // “Tempo limitado” (contador local). Ex: 2 horas.
   const OFFER_DURATION_MS = 2 * 60 * 60 * 1000;
 
-  // ====== Estado existente ======
+  // ====== Estado ======
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
@@ -135,7 +131,7 @@ export default function ComprarPage() {
       setQrBase64(base64);
       setPixCopiaCola(copia);
 
-      // ao gerar Pix, vai direto pro checkout
+      // ao gerar Pix, fica no checkout
       setShowCheckout(true);
     } catch {
       setError("server_error");
@@ -220,81 +216,28 @@ export default function ComprarPage() {
           <Link className="pill" href="/login">
             Entrar
           </Link>
-          <Link className="pill ghost" href="/comprar#checkout">
+          <a
+            className="pill ghost"
+            href="#checkout"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
             Comprar
-          </Link>
+          </a>
         </div>
       </div>
 
-      <section className="heroWrap">
+      {/* SOMENTE o card do preço (abre direto aqui no mobile) */}
+      <section className="heroWrap" id="checkout">
         <div className="heroGrid">
-          {/* Coluna esquerda */}
-          <div className="heroLeft">
-            <div className="badgeRow">
-              <span className="badge">Acesso imediato</span>
-              <span className="badge subtle">Pagamento via Pix</span>
-              <span className="badge subtle">Login por WhatsApp</span>
-            </div>
-
-            <h1 className="title">{PRODUCT_TITLE}</h1>
-
-            <p className="subtitle">
-              Um método direto e prático para reduzir o consumo com consistência — sem depender de força de vontade o tempo
-              todo.
-            </p>
-
-            <div className="bullets">
-              <div className="bullet">
-                <span className="bIcon">✓</span>
-                <div>
-                  <strong>Plano simples</strong>
-                  <p>Passo a passo com ações fáceis de aplicar no dia a dia.</p>
-                </div>
-              </div>
-              <div className="bullet">
-                <span className="bIcon">✓</span>
-                <div>
-                  <strong>Gatilhos e recaídas</strong>
-                  <p>Entenda o padrão e como diminuir a frequência rapidamente.</p>
-                </div>
-              </div>
-              <div className="bullet">
-                <span className="bIcon">✓</span>
-                <div>
-                  <strong>Privado e discreto</strong>
-                  <p>Você acessa com WhatsApp + senha. Sem exposição.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="ctaRow">
-              <a className="btnPrimary" href="#checkout" onClick={() => setShowCheckout(true)}>
-                {CTA_TEXT}
-              </a>
-              <Link className="btnGhost" href="/login">
-                Já comprei
-              </Link>
-            </div>
-
-            <div className="trustRow">
-              <div className="trustItem">
-                <span className="tTitle">Garantia</span>
-                <span className="tSub">Compra segura</span>
-              </div>
-              <div className="trustItem">
-                <span className="tTitle">Entrega</span>
-                <span className="tSub">Acesso imediato</span>
-              </div>
-              <div className="trustItem">
-                <span className="tTitle">Suporte</span>
-                <span className="tSub">Via WhatsApp</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Coluna direita (card de preço + mockup) */}
-          <div className="heroRight" id="checkout">
+          <div className="heroRight">
             <div className="pricingCard">
+              <div className="pricingTop">
+                <div className="(limited)"></div>
+              </div>
+
               <div className="pricingTop">
                 <div className="limited">
                   <span className="pillMini">Tempo limitado</span>
@@ -422,57 +365,18 @@ export default function ComprarPage() {
         </section>
       ) : null}
 
-      {/* FAQ + Prova social clean */}
-      <section className="below">
-        <div className="belowGrid">
-          <div className="panel">
-            <h3>O que você recebe</h3>
-            <ul>
-              <li>Conteúdo em módulos (acesso imediato após pagamento)</li>
-              <li>Estratégias práticas para reduzir frequência e evitar gatilhos</li>
-              <li>Plano claro para manter consistência</li>
-            </ul>
-          </div>
-
-          <div className="panel">
-            <h3>Perguntas rápidas</h3>
-            <div className="qa">
-              <div className="q">Como recebo o acesso?</div>
-              <div className="a">Você cria WhatsApp + senha. Após pagar, entra pelo login.</div>
-            </div>
-            <div className="qa">
-              <div className="q">Demora para liberar?</div>
-              <div className="a">Normalmente libera em poucos segundos após o Pix compensar.</div>
-            </div>
-            <div className="qa">
-              <div className="q">É discreto?</div>
-              <div className="a">Sim. O acesso é privado, via login.</div>
-            </div>
-          </div>
-
-          <div className="panel">
-            <h3>Depoimentos</h3>
-            <div className="quotes">
-              <div className="quote">
-                <div className="stars">★★★★★</div>
-                <p>“O plano é simples e dá pra aplicar sem complicar a rotina.”</p>
-              </div>
-              <div className="quote">
-                <div className="stars">★★★★★</div>
-                <p>“O que mais ajudou foi entender os gatilhos e cortar o ciclo rápido.”</p>
-              </div>
-            </div>
-            <div className="microMuted">*Exemplos de feedback. Você pode trocar por depoimentos reais depois.</div>
-          </div>
-        </div>
-      </section>
-
       <footer className="footer">
         <span>© {new Date().getFullYear()} Conteúdo Premium</span>
         <span className="sep">•</span>
         <Link href="/login">Entrar</Link>
         <span className="sep">•</span>
-        <a href="/comprar#checkout" onClick={() => setShowCheckout(true)}>
+        <a
+          href="#checkout"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
           Comprar
         </a>
       </footer>
@@ -566,189 +470,23 @@ export default function ComprarPage() {
         .heroWrap {
           position: relative;
           z-index: 2;
-          padding: 10px 16px 18px;
+          padding: 10px 16px 26px;
           max-width: 1120px;
           margin: 0 auto;
         }
 
+        /* Agora é 1 coluna e centralizado sempre */
         .heroGrid {
           display: grid;
-          grid-template-columns: 1.35fr 0.9fr;
+          grid-template-columns: 1fr;
           gap: 18px;
           align-items: start;
-        }
-
-        .heroLeft {
-          padding: 10px 6px;
-        }
-
-        .badgeRow {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          height: 26px;
-          padding: 0 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(10, 16, 28, 0.30);
-          color: rgba(229, 231, 235, 0.92);
-          font-size: 12px;
-          font-weight: 800;
-        }
-        .badge.subtle {
-          color: rgba(229, 231, 235, 0.78);
-          background: rgba(10, 16, 28, 0.18);
-        }
-
-        .title {
-          margin: 8px 0 10px;
-          font-size: clamp(34px, 4.1vw, 54px);
-          letter-spacing: -0.03em;
-          font-weight: 900;
-          color: rgba(229, 231, 235, 0.94);
-          text-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
-          line-height: 1.05;
-        }
-
-        .subtitle {
-          margin: 0 0 18px;
-          max-width: 64ch;
-          font-size: 14px;
-          line-height: 1.5;
-          color: rgba(229, 231, 235, 0.74);
-          text-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .bullets {
-          display: grid;
-          gap: 10px;
-          margin-bottom: 16px;
-          max-width: 720px;
-        }
-
-        .bullet {
-          display: grid;
-          grid-template-columns: 22px 1fr;
-          gap: 10px;
-          padding: 12px 12px;
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(10, 16, 28, 0.26);
-          backdrop-filter: blur(10px);
-        }
-
-        .bIcon {
-          width: 22px;
-          height: 22px;
-          display: grid;
-          place-items: center;
-          border-radius: 8px;
-          background: rgba(59, 130, 246, 0.18);
-          border: 1px solid rgba(59, 130, 246, 0.22);
-          color: rgba(229, 231, 235, 0.92);
-          font-weight: 900;
-        }
-
-        .bullet strong {
-          display: block;
-          font-size: 13px;
-          font-weight: 900;
-          letter-spacing: -0.01em;
-          margin-bottom: 4px;
-        }
-
-        .bullet p {
-          margin: 0;
-          font-size: 13px;
-          color: rgba(229, 231, 235, 0.72);
-          line-height: 1.35;
-        }
-
-        .ctaRow {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin: 14px 0 14px;
-          align-items: center;
-        }
-
-        .btnPrimary {
-          height: 44px;
-          padding: 0 16px;
-          border-radius: 14px;
-          border: 1px solid rgba(59, 130, 246, 0.45);
-          background: rgba(59, 130, 246, 0.42);
-          color: rgba(255, 255, 255, 0.95);
-          font-weight: 900;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .btnPrimary:hover {
-          border-color: rgba(59, 130, 246, 0.62);
-          background: rgba(59, 130, 246, 0.48);
-        }
-        .btnPrimary:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-        .btnPrimary.full {
-          width: 100%;
-        }
-
-        .btnGhost {
-          height: 44px;
-          padding: 0 16px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(10, 16, 28, 0.12);
-          color: rgba(229, 231, 235, 0.92);
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 900;
-        }
-        .btnGhost:hover {
-          border-color: rgba(255, 255, 255, 0.22);
-        }
-
-        .trustRow {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-top: 10px;
-        }
-        .trustItem {
-          padding: 10px 12px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(10, 16, 28, 0.20);
-          min-width: 160px;
-        }
-        .tTitle {
-          display: block;
-          font-weight: 900;
-          font-size: 12px;
-          color: rgba(229, 231, 235, 0.90);
-        }
-        .tSub {
-          display: block;
-          margin-top: 3px;
-          font-size: 12px;
-          color: rgba(229, 231, 235, 0.70);
+          justify-items: center;
         }
 
         .heroRight {
-          position: sticky;
-          top: 14px;
+          position: relative;
+          width: min(520px, 96vw);
         }
 
         .pricingCard {
@@ -863,16 +601,61 @@ export default function ComprarPage() {
           line-height: 1.35;
         }
 
-        /* Checkout overlay (clean, não “modal” agressivo) */
+        .btnPrimary {
+          height: 44px;
+          padding: 0 16px;
+          border-radius: 14px;
+          border: 1px solid rgba(59, 130, 246, 0.45);
+          background: rgba(59, 130, 246, 0.42);
+          color: rgba(255, 255, 255, 0.95);
+          font-weight: 900;
+          cursor: pointer;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .btnPrimary:hover {
+          border-color: rgba(59, 130, 246, 0.62);
+          background: rgba(59, 130, 246, 0.48);
+        }
+        .btnPrimary:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        .btnPrimary.full {
+          width: 100%;
+        }
+
+        .btnGhost {
+          height: 44px;
+          padding: 0 16px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(10, 16, 28, 0.12);
+          color: rgba(229, 231, 235, 0.92);
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 900;
+        }
+        .btnGhost:hover {
+          border-color: rgba(255, 255, 255, 0.22);
+        }
+
+        /* Checkout */
         .checkoutWrap {
           position: relative;
           z-index: 3;
-          padding: 16px 16px 26px;
+          padding: 0 16px 26px;
           max-width: 1120px;
           margin: 0 auto;
         }
 
         .checkoutCard {
+          width: min(720px, 96vw);
+          margin: 0 auto;
           border-radius: 20px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(10, 16, 28, 0.42);
@@ -1057,85 +840,6 @@ export default function ComprarPage() {
           line-height: 1.35;
         }
 
-        /* Seção abaixo (FAQ/Prova social) */
-        .below {
-          position: relative;
-          z-index: 2;
-          max-width: 1120px;
-          margin: 0 auto;
-          padding: 10px 16px 40px;
-        }
-        .belowGrid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 12px;
-        }
-
-        .panel {
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(10, 16, 28, 0.22);
-          backdrop-filter: blur(14px);
-          padding: 14px;
-        }
-        .panel h3 {
-          margin: 0 0 10px;
-          font-size: 14px;
-          font-weight: 1000;
-          letter-spacing: -0.01em;
-        }
-        .panel ul {
-          margin: 0;
-          padding-left: 18px;
-          color: rgba(229, 231, 235, 0.72);
-          font-size: 13px;
-          line-height: 1.45;
-        }
-
-        .qa {
-          margin-bottom: 10px;
-        }
-        .q {
-          font-size: 13px;
-          font-weight: 1000;
-          color: rgba(229, 231, 235, 0.88);
-          margin-bottom: 3px;
-        }
-        .a {
-          font-size: 13px;
-          color: rgba(229, 231, 235, 0.72);
-          line-height: 1.35;
-        }
-
-        .quotes {
-          display: grid;
-          gap: 10px;
-        }
-        .quote {
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          background: rgba(15, 23, 42, 0.18);
-          padding: 12px;
-        }
-        .stars {
-          font-size: 12px;
-          letter-spacing: 0.08em;
-          color: rgba(229, 231, 235, 0.88);
-          margin-bottom: 6px;
-        }
-        .quote p {
-          margin: 0;
-          font-size: 13px;
-          color: rgba(229, 231, 235, 0.72);
-          line-height: 1.35;
-        }
-        .microMuted {
-          margin-top: 10px;
-          font-size: 12px;
-          color: rgba(229, 231, 235, 0.55);
-          line-height: 1.35;
-        }
-
         .footer {
           position: relative;
           z-index: 2;
@@ -1160,19 +864,6 @@ export default function ComprarPage() {
         }
         .sep {
           opacity: 0.45;
-        }
-
-        @media (max-width: 980px) {
-          .heroGrid {
-            grid-template-columns: 1fr;
-          }
-          .heroRight {
-            position: relative;
-            top: 0;
-          }
-          .belowGrid {
-            grid-template-columns: 1fr;
-          }
         }
 
         @media (max-width: 820px) {
